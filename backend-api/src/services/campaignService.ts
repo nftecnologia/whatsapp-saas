@@ -6,6 +6,9 @@ import rabbitmq from '@/config/rabbitmq';
 import { createError } from '@/middleware/errorHandler';
 import { SendMessageJob } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import metricsService from './metricsService';
+import apmService from './apmService';
+import logger from '@/utils/logger';
 
 export class CampaignService {
   static async sendCampaign(
@@ -17,33 +20,54 @@ export class CampaignService {
     jobsCreated: number;
     estimatedTime: string;
   }> {
-    const campaign = await CampaignModel.findById(campaignId, companyId);
-    
-    if (!campaign) {
-      throw createError('Campaign not found', 404);
-    }
-
-    if (campaign.status === 'running') {
-      throw createError('Campaign is already running', 400);
-    }
-
-    if (campaign.status === 'completed') {
-      throw createError('Campaign is already completed', 400);
-    }
-
-    if (campaign.total_contacts === 0) {
-      throw createError('Campaign has no contacts', 400);
-    }
-
-    const template = await TemplateModel.findById(campaign.template_id, companyId);
-    if (!template) {
-      throw createError('Campaign template not found', 400);
-    }
-
-    await CampaignModel.update(campaignId, companyId, {
-      status: 'running',
-      started_at: new Date()
+    const traceId = apmService.startTrace('campaign_send', {
+      campaignId,
+      companyId,
+      integrationId: integrationId || 'default',
     });
+
+    try {
+      const campaign = await CampaignModel.findById(campaignId, companyId);
+      
+      if (!campaign) {
+        throw createError('Campaign not found', 404);
+      }
+
+      if (campaign.status === 'running') {
+        throw createError('Campaign is already running', 400);
+      }
+
+      if (campaign.status === 'completed') {
+        throw createError('Campaign is already completed', 400);
+      }
+
+      if (campaign.total_contacts === 0) {
+        throw createError('Campaign has no contacts', 400);
+      }
+
+      const template = await TemplateModel.findById(campaign.template_id, companyId);
+      if (!template) {
+        throw createError('Campaign template not found', 400);
+      }
+
+      // Record business metrics
+      metricsService.recordCampaign('started', companyId, campaign.type || 'broadcast');
+      
+      // Add trace metadata
+      apmService.addTraceMetadata(traceId, 'campaignType', campaign.type);
+      apmService.addTraceMetadata(traceId, 'totalContacts', campaign.total_contacts);
+
+      await CampaignModel.update(campaignId, companyId, {
+        status: 'running',
+        started_at: new Date()
+      });
+
+      logger.logBusinessMetric('campaign_started', 1, 'count', {
+        campaignId,
+        companyId,
+        campaignType: campaign.type,
+        totalContacts: campaign.total_contacts.toString(),
+      });
 
     const { contacts } = await CampaignModel.getCampaignContacts(campaignId, {
       status: 'pending',
@@ -81,6 +105,9 @@ export class CampaignService {
         message_content: messageContent,
         status: 'pending'
       });
+
+      // Record message queued metric
+      metricsService.recordMessage('queued', campaignId, companyId, 'text');
     }
 
     let publishedJobs = 0;
@@ -114,13 +141,34 @@ export class CampaignService {
     const estimatedTimeMinutes = Math.ceil(publishedJobs / 10);
     const estimatedTime = `${estimatedTimeMinutes} minutes`;
 
-    console.log(`Campaign ${campaignId} started: ${publishedJobs} jobs published`);
+    logger.info('Campaign started successfully', {
+      campaignId,
+      companyId,
+      jobsPublished: publishedJobs,
+      estimatedTime,
+    });
+
+    // Record campaign completion metrics
+    logger.logBusinessMetric('campaign_jobs_created', publishedJobs, 'count', {
+      campaignId,
+      companyId,
+      estimatedTime,
+    });
+
+    // Finish APM trace
+    apmService.addTraceMetadata(traceId, 'jobsCreated', publishedJobs);
+    apmService.finishTrace(traceId);
 
     return {
       campaign: await CampaignModel.findById(campaignId, companyId),
       jobsCreated: publishedJobs,
       estimatedTime
     };
+    } catch (error) {
+      apmService.finishTrace(traceId, error as Error);
+      metricsService.recordCampaign('failed', companyId, 'broadcast');
+      throw error;
+    }
   }
 
   static async pauseCampaign(campaignId: string, companyId: string): Promise<any> {

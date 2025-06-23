@@ -1,0 +1,303 @@
+# Prometheus Alert Rules for WhatsApp SaaS Platform
+groups:
+  # System Health Alerts
+  - name: system_health
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} on {{ $labels.instance }} has been down for more than 1 minute."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/service-down"
+
+      - alert: HighMemoryUsage
+        expr: (whatsapp_saas_memory_usage_bytes{type="rss"} / whatsapp_saas_memory_usage_bytes{type="total"}) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}, which is above 85% threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-memory"
+
+      - alert: CriticalMemoryUsage
+        expr: (whatsapp_saas_memory_usage_bytes{type="rss"} / whatsapp_saas_memory_usage_bytes{type="total"}) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Critical memory usage detected"
+          description: "Memory usage is {{ $value }}% on {{ $labels.instance }}, which is above 95% threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/critical-memory"
+
+      - alert: HighCPUUsage
+        expr: whatsapp_saas_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is {{ $value }}% on {{ $labels.instance }}, which is above 80% threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-cpu"
+
+  # HTTP Performance Alerts
+  - name: http_performance
+    rules:
+      - alert: HighErrorRate
+        expr: (rate(whatsapp_saas_http_requests_total{status_code=~"5.."}[5m]) / rate(whatsapp_saas_http_requests_total[5m])) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High HTTP error rate detected"
+          description: "HTTP error rate is {{ $value }}% which is above 5% threshold for {{ $labels.method }} {{ $labels.route }}."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-error-rate"
+
+      - alert: CriticalErrorRate
+        expr: (rate(whatsapp_saas_http_requests_total{status_code=~"5.."}[5m]) / rate(whatsapp_saas_http_requests_total[5m])) * 100 > 15
+        for: 1m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Critical HTTP error rate detected"
+          description: "HTTP error rate is {{ $value }}% which is above 15% threshold for {{ $labels.method }} {{ $labels.route }}."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/critical-error-rate"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m])) > 2
+        for: 3m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High HTTP response time detected"
+          description: "95th percentile response time is {{ $value }}s which is above 2s threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-response-time"
+
+      - alert: VeryHighResponseTime
+        expr: histogram_quantile(0.95, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m])) > 5
+        for: 1m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Very high HTTP response time detected"
+          description: "95th percentile response time is {{ $value }}s which is above 5s threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/very-high-response-time"
+
+      - alert: LowThroughput
+        expr: rate(whatsapp_saas_http_requests_total[5m]) < 0.1
+        for: 10m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "Low HTTP throughput detected"
+          description: "HTTP request rate is {{ $value }} requests/second which is below 0.1 threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/low-throughput"
+
+  # Database Alerts
+  - name: database_health
+    rules:
+      - alert: DatabaseConnectionError
+        expr: whatsapp_saas_database_errors_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Database connection errors detected"
+          description: "{{ $value }} database connection errors detected in the last minute."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/database-errors"
+
+      - alert: SlowDatabaseQueries
+        expr: rate(whatsapp_saas_slow_queries_total[5m]) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "Slow database queries detected"
+          description: "{{ $value }} slow database queries per second detected."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/slow-queries"
+
+      - alert: HighDatabaseConnections
+        expr: whatsapp_saas_database_connections{state="active"} > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High number of active database connections"
+          description: "{{ $value }} active database connections, which may indicate connection leaks."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-db-connections"
+
+  # Message Processing Alerts
+  - name: message_processing
+    rules:
+      - alert: MessageProcessingStopped
+        expr: |
+          (time() - whatsapp_saas_messages_last_processed_timestamp) > 1800
+          and
+          whatsapp_saas_messages_total > 0
+        for: 5m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Message processing has stopped"
+          description: "No messages have been processed for more than 30 minutes."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/message-processing-stopped"
+
+      - alert: HighMessageFailureRate
+        expr: (rate(whatsapp_saas_messages_total{status="failed"}[5m]) / rate(whatsapp_saas_messages_total[5m])) * 100 > 10
+        for: 3m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High message failure rate detected"
+          description: "Message failure rate is {{ $value }}% which is above 10% threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-message-failure-rate"
+
+      - alert: LowMessageThroughput
+        expr: rate(whatsapp_saas_messages_total{status="sent"}[10m]) < 0.01
+        for: 15m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "Low message throughput detected"
+          description: "Message sending rate is {{ $value }} messages/second which is below expected threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/low-message-throughput"
+
+  # External Service Alerts
+  - name: external_services
+    rules:
+      - alert: EvolutionAPIDown
+        expr: whatsapp_saas_evolution_api_calls_total{status_code=~"5.."} > 0
+        for: 2m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Evolution API is returning errors"
+          description: "Evolution API is returning 5xx errors for endpoint {{ $labels.endpoint }}."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/evolution-api-down"
+
+      - alert: HighEvolutionAPILatency
+        expr: histogram_quantile(0.95, rate(whatsapp_saas_evolution_api_call_duration_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High Evolution API latency detected"
+          description: "95th percentile Evolution API response time is {{ $value }}s which is above 10s threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-evolution-api-latency"
+
+  # Queue Health Alerts
+  - name: queue_health
+    rules:
+      - alert: RabbitMQConnectionError
+        expr: whatsapp_saas_rabbitmq_connection_errors_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "RabbitMQ connection errors detected"
+          description: "{{ $value }} RabbitMQ connection errors detected in the last minute."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/rabbitmq-connection-errors"
+
+      - alert: HighQueueBacklog
+        expr: whatsapp_saas_rabbitmq_messages{state="ready"} > 1000
+        for: 5m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High queue backlog detected"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} messages waiting to be processed."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-queue-backlog"
+
+      - alert: CriticalQueueBacklog
+        expr: whatsapp_saas_rabbitmq_messages{state="ready"} > 5000
+        for: 2m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Critical queue backlog detected"
+          description: "Queue {{ $labels.queue_name }} has {{ $value }} messages waiting, which may cause system instability."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/critical-queue-backlog"
+
+  # Security Alerts
+  - name: security
+    rules:
+      - alert: HighRateLimitViolations
+        expr: rate(whatsapp_saas_rate_limit_exceeded_total[5m]) > 1
+        for: 2m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High rate limit violations detected"
+          description: "{{ $value }} rate limit violations per second from {{ $labels.ip }}."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/rate-limit-violations"
+
+      - alert: AuthenticationFailures
+        expr: rate(whatsapp_saas_auth_failures_total[5m]) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "High authentication failure rate detected"
+          description: "{{ $value }} authentication failures per second detected."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/auth-failures"
+
+      - alert: SuspiciousActivity
+        expr: whatsapp_saas_security_events_total{event_type="suspicious_activity"} > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: whatsapp-saas
+        annotations:
+          summary: "Suspicious activity detected"
+          description: "{{ $value }} suspicious activity events detected in the last minute."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/suspicious-activity"
+
+  # Business Logic Alerts
+  - name: business_logic
+    rules:
+      - alert: LowCampaignSuccessRate
+        expr: (rate(whatsapp_saas_campaigns_total{status="completed"}[10m]) / rate(whatsapp_saas_campaigns_total{status=~"started|completed|failed"}[10m])) * 100 < 80
+        for: 10m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "Low campaign success rate detected"
+          description: "Campaign success rate is {{ $value }}% which is below 80% threshold."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/low-campaign-success-rate"
+
+      - alert: UnusuallyHighMessageVolume
+        expr: rate(whatsapp_saas_messages_total[5m]) > increase(whatsapp_saas_messages_total[1h])[7d:1h] * 3
+        for: 10m
+        labels:
+          severity: warning
+          service: whatsapp-saas
+        annotations:
+          summary: "Unusually high message volume detected"
+          description: "Current message rate {{ $value }}/s is 3x higher than historical average."
+          runbook_url: "https://docs.whatsapp-saas.com/runbooks/high-message-volume"

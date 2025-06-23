@@ -1,0 +1,449 @@
+{
+  "index_patterns": ["whatsapp-saas-logs-*"],
+  "version": 1,
+  "settings": {
+    "number_of_shards": 3,
+    "number_of_replicas": 1,
+    "index.refresh_interval": "30s",
+    "index.codec": "best_compression",
+    "index.mapping.total_fields.limit": 2000,
+    "index.max_result_window": 50000,
+    
+    "analysis": {
+      "analyzer": {
+        "log_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "stop", "stemmer"]
+        },
+        "path_analyzer": {
+          "type": "custom",
+          "tokenizer": "path_hierarchy",
+          "filter": ["lowercase"]
+        }
+      },
+      "tokenizer": {
+        "path_hierarchy": {
+          "type": "path_hierarchy",
+          "delimiter": "/"
+        }
+      }
+    },
+    
+    "index.lifecycle.name": "whatsapp-saas-policy",
+    "index.lifecycle.rollover_alias": "whatsapp-saas-logs"
+  },
+  
+  "mappings": {
+    "properties": {
+      "@timestamp": {
+        "type": "date",
+        "format": "strict_date_optional_time||epoch_millis"
+      },
+      
+      "timestamp": {
+        "type": "date",
+        "format": "yyyy-MM-dd HH:mm:ss.SSS||strict_date_optional_time||epoch_millis"
+      },
+      
+      "level": {
+        "type": "keyword",
+        "fields": {
+          "text": {
+            "type": "text",
+            "analyzer": "log_analyzer"
+          }
+        }
+      },
+      
+      "message": {
+        "type": "text",
+        "analyzer": "log_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 1024
+          }
+        }
+      },
+      
+      "service": {
+        "type": "keyword"
+      },
+      
+      "environment": {
+        "type": "keyword"
+      },
+      
+      "cluster": {
+        "type": "keyword"
+      },
+      
+      "node_name": {
+        "type": "keyword"
+      },
+      
+      "pod_name": {
+        "type": "keyword"
+      },
+      
+      "namespace": {
+        "type": "keyword"
+      },
+      
+      "log_type": {
+        "type": "keyword"
+      },
+      
+      "requestId": {
+        "type": "keyword"
+      },
+      
+      "userId": {
+        "type": "keyword"
+      },
+      
+      "companyId": {
+        "type": "keyword"
+      },
+      
+      "userAgent": {
+        "type": "text",
+        "analyzer": "log_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 512
+          }
+        }
+      },
+      
+      "ip": {
+        "type": "ip"
+      },
+      
+      "method": {
+        "type": "keyword"
+      },
+      
+      "url": {
+        "type": "text",
+        "analyzer": "path_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 512
+          }
+        }
+      },
+      
+      "route": {
+        "type": "keyword"
+      },
+      
+      "statusCode": {
+        "type": "integer"
+      },
+      
+      "status_code_class": {
+        "type": "keyword"
+      },
+      
+      "responseTime": {
+        "type": "float"
+      },
+      
+      "response_time_ms": {
+        "type": "float"
+      },
+      
+      "contentLength": {
+        "type": "long"
+      },
+      
+      "referer": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 512
+          }
+        }
+      },
+      
+      "is_error": {
+        "type": "boolean"
+      },
+      
+      "is_slow": {
+        "type": "boolean"
+      },
+      
+      "error": {
+        "properties": {
+          "message": {
+            "type": "text",
+            "analyzer": "log_analyzer"
+          },
+          "stack": {
+            "type": "text",
+            "index": false
+          },
+          "code": {
+            "type": "keyword"
+          }
+        }
+      },
+      
+      "geoip": {
+        "properties": {
+          "country": {
+            "type": "keyword"
+          },
+          "city": {
+            "type": "keyword"
+          },
+          "region": {
+            "type": "keyword"
+          },
+          "location": {
+            "type": "geo_point"
+          }
+        }
+      },
+      
+      "ua": {
+        "properties": {
+          "name": {
+            "type": "keyword"
+          },
+          "version": {
+            "type": "keyword"
+          },
+          "os": {
+            "type": "keyword"
+          },
+          "device": {
+            "type": "keyword"
+          }
+        }
+      },
+      
+      "security": {
+        "properties": {
+          "alert_type": {
+            "type": "keyword"
+          },
+          "severity": {
+            "type": "keyword"
+          },
+          "requires_immediate_attention": {
+            "type": "boolean"
+          }
+        }
+      },
+      
+      "performance": {
+        "properties": {
+          "operation": {
+            "type": "keyword"
+          },
+          "duration": {
+            "type": "float"
+          },
+          "alert_type": {
+            "type": "keyword"
+          },
+          "severity": {
+            "type": "keyword"
+          }
+        }
+      },
+      
+      "business_metric": {
+        "properties": {
+          "metric_name": {
+            "type": "keyword"
+          },
+          "value": {
+            "type": "float"
+          },
+          "unit": {
+            "type": "keyword"
+          },
+          "tags": {
+            "type": "object",
+            "dynamic": true
+          }
+        }
+      },
+      
+      "database": {
+        "properties": {
+          "query": {
+            "type": "text",
+            "analyzer": "log_analyzer",
+            "fields": {
+              "keyword": {
+                "type": "keyword",
+                "ignore_above": 1024
+              }
+            }
+          },
+          "params": {
+            "type": "object",
+            "enabled": false
+          },
+          "duration": {
+            "type": "float"
+          },
+          "rowCount": {
+            "type": "integer"
+          }
+        }
+      },
+      
+      "redis": {
+        "properties": {
+          "operation": {
+            "type": "keyword"
+          },
+          "key": {
+            "type": "keyword"
+          },
+          "duration": {
+            "type": "float"
+          }
+        }
+      },
+      
+      "rabbitmq": {
+        "properties": {
+          "operation": {
+            "type": "keyword"
+          },
+          "queue": {
+            "type": "keyword"
+          },
+          "messageId": {
+            "type": "keyword"
+          }
+        }
+      },
+      
+      "evolution_api": {
+        "properties": {
+          "endpoint": {
+            "type": "keyword"
+          },
+          "method": {
+            "type": "keyword"
+          },
+          "statusCode": {
+            "type": "integer"
+          },
+          "duration": {
+            "type": "float"
+          },
+          "messageId": {
+            "type": "keyword"
+          }
+        }
+      },
+      
+      "message_processing": {
+        "properties": {
+          "messageId": {
+            "type": "keyword"
+          },
+          "contactPhone": {
+            "type": "keyword"
+          },
+          "campaignId": {
+            "type": "keyword"
+          },
+          "status": {
+            "type": "keyword"
+          },
+          "duration": {
+            "type": "float"
+          }
+        }
+      },
+      
+      "auth": {
+        "properties": {
+          "action": {
+            "type": "keyword"
+          },
+          "userId": {
+            "type": "keyword"
+          },
+          "email": {
+            "type": "keyword"
+          },
+          "success": {
+            "type": "boolean"
+          }
+        }
+      },
+      
+      "metadata": {
+        "type": "object",
+        "dynamic": true,
+        "properties": {
+          "traceId": {
+            "type": "keyword"
+          },
+          "spanId": {
+            "type": "keyword"
+          },
+          "parentSpanId": {
+            "type": "keyword"
+          }
+        }
+      },
+      
+      "tags": {
+        "type": "object",
+        "dynamic": true
+      },
+      
+      "kubernetes": {
+        "properties": {
+          "namespace": {
+            "type": "keyword"
+          },
+          "pod_name": {
+            "type": "keyword"
+          },
+          "container_name": {
+            "type": "keyword"
+          },
+          "labels": {
+            "type": "object",
+            "dynamic": true
+          }
+        }
+      },
+      
+      "docker": {
+        "properties": {
+          "container_id": {
+            "type": "keyword"
+          },
+          "container_name": {
+            "type": "keyword"
+          },
+          "image": {
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  },
+  
+  "aliases": {
+    "whatsapp-saas-logs": {}
+  }
+}

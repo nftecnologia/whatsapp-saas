@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   MagnifyingGlassIcon,
@@ -6,6 +6,7 @@ import {
   ArrowPathIcon,
   ChartBarIcon,
   EyeIcon,
+  ClockIcon,
 } from '@heroicons/react/24/outline';
 import apiService from '@/services/api';
 import { MessageLog, Campaign } from '@/types';
@@ -15,6 +16,7 @@ import { Input } from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/Table';
 import { Badge } from '@/components/ui/Badge';
+import { DonutChart, BarChart, LineChart } from '@/components/Charts';
 
 const statusLabels = {
   pending: 'Pendente',
@@ -42,6 +44,7 @@ export default function MessageLogs() {
   const [selectedLog, setSelectedLog] = useState<MessageLog | null>(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [autoRefresh, setAutoRefresh] = useState(false);
 
   const { data: logsData, isLoading, refetch } = useQuery({
     queryKey: ['message-logs', { search, status, campaignId, startDate, endDate, page }],
@@ -54,6 +57,7 @@ export default function MessageLogs() {
       page,
       limit: 15 
     }),
+    refetchInterval: autoRefresh ? 30000 : false,
   });
 
   const { data: campaignsData } = useQuery({
@@ -68,6 +72,7 @@ export default function MessageLogs() {
       start_date: startDate,
       end_date: endDate,
     }),
+    refetchInterval: autoRefresh ? 30000 : false,
   });
 
   const handleViewDetails = (log: MessageLog) => {
@@ -89,6 +94,22 @@ export default function MessageLogs() {
   const campaigns = campaignsData?.data || [];
   const stats = statsData?.data || {};
 
+  // Prepare chart data
+  const statusChartData = stats.byStatus ? Object.entries(stats.byStatus).map(([status, count]) => ({
+    label: statusLabels[status as keyof typeof statusLabels],
+    value: count as number,
+    color: status === 'delivered' ? '#10b981' : 
+           status === 'sent' ? '#3b82f6' : 
+           status === 'read' ? '#8b5cf6' : 
+           status === 'failed' ? '#ef4444' : '#f59e0b'
+  })) : [];
+
+  const campaignChartData = stats.byCampaign ? Object.entries(stats.byCampaign).map(([campaignName, count]) => ({
+    label: campaignName || 'Mensagem Avulsa',
+    value: count as number,
+    color: '#6366f1'
+  })) : [];
+
   return (
     <div>
       <div className="sm:flex sm:items-center">
@@ -100,7 +121,17 @@ export default function MessageLogs() {
             Visualize o histórico de todas as mensagens enviadas
           </p>
         </div>
-        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none space-x-2">
+        <div className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex items-center space-x-2">
+          <label className="flex items-center space-x-2 text-sm">
+            <input
+              type="checkbox"
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              checked={autoRefresh}
+              onChange={(e) => setAutoRefresh(e.target.checked)}
+            />
+            <ClockIcon className="h-4 w-4 text-gray-500" />
+            <span className="text-gray-700">Auto-atualizar</span>
+          </label>
           <Button
             variant="outline"
             onClick={() => setIsStatsModalOpen(true)}
@@ -451,48 +482,104 @@ export default function MessageLogs() {
         isOpen={isStatsModalOpen}
         onClose={() => setIsStatsModalOpen(false)}
         title="Estatísticas Detalhadas"
-        size="lg"
+        size="xl"
       >
         {stats && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-lg font-medium text-gray-900">Resumo Geral</h4>
-                <div className="mt-2 space-y-2">
-                  <div className="flex justify-between">
-                    <span>Total de Mensagens:</span>
-                    <span className="font-medium">{stats.total?.toLocaleString() || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Taxa de Sucesso:</span>
-                    <span className="font-medium text-green-600">
-                      {stats.successRate?.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Taxa de Entrega:</span>
-                    <span className="font-medium text-blue-600">
-                      {stats.deliveryRate?.toFixed(1) || 0}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Taxa de Leitura:</span>
-                    <span className="font-medium text-purple-600">
-                      {stats.readRate?.toFixed(1) || 0}%
-                    </span>
-                  </div>
+          <div className="space-y-8">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white p-4 rounded-lg">
+                <div className="text-2xl font-bold">{stats.total?.toLocaleString() || 0}</div>
+                <div className="text-sm opacity-90">Total de Mensagens</div>
+              </div>
+              <div className="bg-gradient-to-r from-green-500 to-green-600 text-white p-4 rounded-lg">
+                <div className="text-2xl font-bold">{stats.successRate?.toFixed(1) || 0}%</div>
+                <div className="text-sm opacity-90">Taxa de Sucesso</div>
+              </div>
+              <div className="bg-gradient-to-r from-purple-500 to-purple-600 text-white p-4 rounded-lg">
+                <div className="text-2xl font-bold">{stats.deliveryRate?.toFixed(1) || 0}%</div>
+                <div className="text-sm opacity-90">Taxa de Entrega</div>
+              </div>
+              <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 text-white p-4 rounded-lg">
+                <div className="text-2xl font-bold">{stats.readRate?.toFixed(1) || 0}%</div>
+                <div className="text-sm opacity-90">Taxa de Leitura</div>
+              </div>
+            </div>
+
+            {/* Charts Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Status Distribution Chart */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Distribuição por Status</h4>
+                <div className="flex items-center justify-center">
+                  <DonutChart data={statusChartData} size={160} />
+                </div>
+                <div className="mt-4 space-y-2">
+                  {statusChartData.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <div 
+                          className="w-3 h-3 rounded-full" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-sm text-gray-700">{item.label}</span>
+                      </div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {item.value.toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <h4 className="text-lg font-medium text-gray-900">Por Status</h4>
-                <div className="mt-2 space-y-2">
+              {/* Campaign Performance Chart */}
+              <div className="bg-gray-50 p-6 rounded-lg">
+                <h4 className="text-lg font-medium text-gray-900 mb-4">Mensagens por Campanha</h4>
+                <div className="h-64">
+                  <BarChart data={campaignChartData.slice(0, 10)} height={240} />
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white border rounded-lg p-4">
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Detalhamento por Status</h4>
+                <div className="space-y-2">
                   {stats.byStatus && Object.entries(stats.byStatus).map(([status, count]) => (
-                    <div key={status} className="flex justify-between">
-                      <span>{statusLabels[status as keyof typeof statusLabels]}:</span>
+                    <div key={status} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
+                      <div className="flex items-center space-x-2">
+                        <Badge variant={statusColors[status as keyof typeof statusColors]}>
+                          {statusLabels[status as keyof typeof statusLabels]}
+                        </Badge>
+                      </div>
                       <span className="font-medium">{count?.toLocaleString() || 0}</span>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              <div className="bg-white border rounded-lg p-4">
+                <h4 className="text-lg font-medium text-gray-900 mb-3">Performance Resumo</h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Enviadas com Sucesso:</span>
+                    <span className="font-medium text-green-600">
+                      {((stats.byStatus?.sent || 0) + (stats.byStatus?.delivered || 0) + (stats.byStatus?.read || 0)).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Falharam:</span>
+                    <span className="font-medium text-red-600">
+                      {(stats.byStatus?.failed || 0).toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Pendentes:</span>
+                    <span className="font-medium text-yellow-600">
+                      {(stats.byStatus?.pending || 0).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

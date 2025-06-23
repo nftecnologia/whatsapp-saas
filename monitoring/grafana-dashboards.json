@@ -1,0 +1,547 @@
+{
+  "dashboards": [
+    {
+      "id": "whatsapp-saas-overview",
+      "title": "WhatsApp SaaS - System Overview",
+      "tags": ["whatsapp", "saas", "overview"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "System Health",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_up",
+              "legendFormat": "System Status"
+            }
+          ],
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "thresholds": {
+                "steps": [
+                  { "color": "red", "value": 0 },
+                  { "color": "green", "value": 1 }
+                ]
+              }
+            }
+          },
+          "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "title": "HTTP Request Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_http_requests_total[5m])",
+              "legendFormat": "{{method}} {{route}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "requests/sec",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 18, "x": 6, "y": 0 }
+        },
+        {
+          "id": 3,
+          "title": "Response Time Percentiles",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.50, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "50th percentile"
+            },
+            {
+              "expr": "histogram_quantile(0.90, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "90th percentile"
+            },
+            {
+              "expr": "histogram_quantile(0.95, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "95th percentile"
+            },
+            {
+              "expr": "histogram_quantile(0.99, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "99th percentile"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "seconds",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+        },
+        {
+          "id": 4,
+          "title": "Error Rate",
+          "type": "singlestat",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_http_requests_total{status_code=~\"4..|5..\"}[5m]) / rate(whatsapp_saas_http_requests_total[5m]) * 100",
+              "legendFormat": "Error Rate %"
+            }
+          ],
+          "thresholds": "5,10",
+          "colorBackground": true,
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+        },
+        {
+          "id": 5,
+          "title": "Active Connections",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_http_active_connections",
+              "legendFormat": "Active Connections"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "connections",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 }
+        }
+      ]
+    },
+    {
+      "id": "whatsapp-saas-business",
+      "title": "WhatsApp SaaS - Business Metrics",
+      "tags": ["whatsapp", "saas", "business"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Messages Sent",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_messages_total{status=\"sent\"}[5m])",
+              "legendFormat": "Messages/sec"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "messages/sec",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "title": "Message Delivery Status",
+          "type": "pie",
+          "targets": [
+            {
+              "expr": "sum by (status) (whatsapp_saas_messages_total)",
+              "legendFormat": "{{status}}"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+        },
+        {
+          "id": 3,
+          "title": "Campaign Activities",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_campaigns_total[5m])",
+              "legendFormat": "{{status}} campaigns"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "campaigns/sec",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 }
+        },
+        {
+          "id": 4,
+          "title": "Total Contacts by Company",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_contacts_total",
+              "legendFormat": "{{company_id}}"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 }
+        },
+        {
+          "id": 5,
+          "title": "Evolution API Call Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_evolution_api_calls_total[5m])",
+              "legendFormat": "{{endpoint}} {{method}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "calls/sec",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+        },
+        {
+          "id": 6,
+          "title": "Evolution API Response Time",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(whatsapp_saas_evolution_api_call_duration_seconds_bucket[5m]))",
+              "legendFormat": "95th percentile"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "seconds",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+        }
+      ]
+    },
+    {
+      "id": "whatsapp-saas-infrastructure",
+      "title": "WhatsApp SaaS - Infrastructure",
+      "tags": ["whatsapp", "saas", "infrastructure"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Memory Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_memory_usage_bytes{type=\"heap_used\"} / 1024 / 1024",
+              "legendFormat": "Heap Used (MB)"
+            },
+            {
+              "expr": "whatsapp_saas_memory_usage_bytes{type=\"heap_total\"} / 1024 / 1024",
+              "legendFormat": "Heap Total (MB)"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "MB",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "title": "CPU Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_cpu_usage_percent",
+              "legendFormat": "CPU Usage %"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "percent",
+              "min": 0,
+              "max": 100
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+        },
+        {
+          "id": 3,
+          "title": "Database Connections",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_database_connections",
+              "legendFormat": "{{state}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "connections",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 8, "x": 0, "y": 8 }
+        },
+        {
+          "id": 4,
+          "title": "Redis Connections",
+          "type": "singlestat",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_redis_connections",
+              "legendFormat": "Redis Connections"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 8, "x": 8, "y": 8 }
+        },
+        {
+          "id": 5,
+          "title": "RabbitMQ Queue Messages",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "whatsapp_saas_rabbitmq_messages",
+              "legendFormat": "{{queue_name}} {{state}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "messages",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 8, "x": 16, "y": 8 }
+        },
+        {
+          "id": 6,
+          "title": "Error Count by Type",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_errors_total[5m])",
+              "legendFormat": "{{type}} {{severity}}"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "errors/sec",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 }
+        }
+      ]
+    },
+    {
+      "id": "whatsapp-saas-alerts",
+      "title": "WhatsApp SaaS - Alerts & Health",
+      "tags": ["whatsapp", "saas", "alerts"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Service Health Status",
+          "type": "table",
+          "targets": [
+            {
+              "expr": "up{job=\"whatsapp-saas-api\"}",
+              "legendFormat": "API Service"
+            },
+            {
+              "expr": "up{job=\"whatsapp-saas-worker\"}",
+              "legendFormat": "Worker Service"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "title": "Alert Severity Distribution",
+          "type": "pie",
+          "targets": [
+            {
+              "expr": "sum by (severity) (whatsapp_saas_alerts_active)",
+              "legendFormat": "{{severity}}"
+            }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 }
+        },
+        {
+          "id": 3,
+          "title": "Response Time Trends",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "avg(whatsapp_saas_response_time_percentiles{quantile=\"0.5\"})",
+              "legendFormat": "50th percentile"
+            },
+            {
+              "expr": "avg(whatsapp_saas_response_time_percentiles{quantile=\"0.9\"})",
+              "legendFormat": "90th percentile"
+            },
+            {
+              "expr": "avg(whatsapp_saas_response_time_percentiles{quantile=\"0.95\"})",
+              "legendFormat": "95th percentile"
+            }
+          ],
+          "yAxes": [
+            {
+              "label": "milliseconds",
+              "min": 0
+            }
+          ],
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 }
+        },
+        {
+          "id": 4,
+          "title": "Slow Query Count",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_slow_queries_total[5m])",
+              "legendFormat": "Slow Queries/sec"
+            }
+          ],
+          "thresholds": [
+            { "color": "green", "value": 0 },
+            { "color": "yellow", "value": 0.1 },
+            { "color": "red", "value": 1 }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 }
+        },
+        {
+          "id": 5,
+          "title": "Rate Limit Violations",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "rate(whatsapp_saas_rate_limit_exceeded_total[5m])",
+              "legendFormat": "Rate Limits Exceeded/sec"
+            }
+          ],
+          "thresholds": [
+            { "color": "green", "value": 0 },
+            { "color": "yellow", "value": 0.1 },
+            { "color": "red", "value": 1 }
+          ],
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 }
+        }
+      ]
+    }
+  ],
+  "alertRules": [
+    {
+      "name": "High Error Rate",
+      "expr": "rate(whatsapp_saas_http_requests_total{status_code=~\"5..\"}[5m]) / rate(whatsapp_saas_http_requests_total[5m]) * 100 > 5",
+      "for": "2m",
+      "labels": {
+        "severity": "warning",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "High error rate detected",
+        "description": "Error rate is {{ $value }}% which is above the 5% threshold"
+      }
+    },
+    {
+      "name": "High Response Time",
+      "expr": "histogram_quantile(0.95, rate(whatsapp_saas_http_request_duration_seconds_bucket[5m])) > 2",
+      "for": "5m",
+      "labels": {
+        "severity": "warning",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "High response time detected",
+        "description": "95th percentile response time is {{ $value }}s which is above 2s threshold"
+      }
+    },
+    {
+      "name": "Service Down",
+      "expr": "up{job=\"whatsapp-saas-api\"} == 0",
+      "for": "1m",
+      "labels": {
+        "severity": "critical",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "WhatsApp SaaS API service is down",
+        "description": "The API service has been down for more than 1 minute"
+      }
+    },
+    {
+      "name": "High Memory Usage",
+      "expr": "whatsapp_saas_memory_usage_bytes{type=\"rss\"} / whatsapp_saas_process_virtual_memory_bytes * 100 > 80",
+      "for": "5m",
+      "labels": {
+        "severity": "warning",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "High memory usage detected",
+        "description": "Memory usage is {{ $value }}% which is above 80% threshold"
+      }
+    },
+    {
+      "name": "Database Connection Issues",
+      "expr": "whatsapp_saas_database_errors_total > 0",
+      "for": "1m",
+      "labels": {
+        "severity": "warning",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "Database connection errors detected",
+        "description": "Database errors detected: {{ $value }} errors in the last minute"
+      }
+    },
+    {
+      "name": "RabbitMQ Queue Backlog",
+      "expr": "whatsapp_saas_rabbitmq_messages{state=\"ready\"} > 1000",
+      "for": "5m",
+      "labels": {
+        "severity": "warning",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "High RabbitMQ queue backlog",
+        "description": "Queue {{ $labels.queue_name }} has {{ $value }} messages waiting"
+      }
+    },
+    {
+      "name": "Low Message Throughput",
+      "expr": "rate(whatsapp_saas_messages_total{status=\"sent\"}[5m]) < 0.1",
+      "for": "10m",
+      "labels": {
+        "severity": "warning",
+        "service": "whatsapp-saas"
+      },
+      "annotations": {
+        "summary": "Low message throughput",
+        "description": "Message sending rate is {{ $value }} messages/sec which is below expected threshold"
+      }
+    }
+  ],
+  "notificationChannels": [
+    {
+      "name": "slack-alerts",
+      "type": "slack",
+      "settings": {
+        "url": "${SLACK_WEBHOOK_URL}",
+        "channel": "#alerts",
+        "username": "Grafana",
+        "title": "WhatsApp SaaS Alert",
+        "text": "{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}"
+      }
+    },
+    {
+      "name": "email-alerts",
+      "type": "email",
+      "settings": {
+        "addresses": "${ALERT_EMAIL_ADDRESSES}",
+        "subject": "WhatsApp SaaS Alert: {{ .GroupLabels.alertname }}",
+        "body": "{{ range .Alerts }}{{ .Annotations.description }}{{ end }}"
+      }
+    }
+  ]
+}

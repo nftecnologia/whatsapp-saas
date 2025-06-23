@@ -1,0 +1,335 @@
+# AlertManager Configuration for WhatsApp SaaS Platform
+global:
+  # Global SMTP configuration
+  smtp_smarthost: '${SMTP_HOST}:${SMTP_PORT}'
+  smtp_from: '${ALERT_FROM_EMAIL}'
+  smtp_auth_username: '${SMTP_USERNAME}'
+  smtp_auth_password: '${SMTP_PASSWORD}'
+  smtp_require_tls: true
+
+# Email templates
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route configuration with escalation
+route:
+  group_by: ['alertname', 'severity', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'default-receiver'
+  
+  # Route tree for different alert severities and escalation
+  routes:
+    # Critical alerts - immediate notification with escalation
+    - match:
+        severity: critical
+      receiver: 'critical-alerts'
+      group_wait: 10s
+      group_interval: 2m
+      repeat_interval: 5m
+      routes:
+        # Escalate to on-call after 15 minutes if not acknowledged
+        - match:
+            severity: critical
+          receiver: 'escalation-oncall'
+          group_wait: 15m
+          continue: true
+
+    # High severity alerts - notify team leads
+    - match:
+        severity: high
+      receiver: 'high-severity-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 30m
+
+    # Warning alerts - notify team
+    - match:
+        severity: warning
+      receiver: 'warning-alerts'
+      group_wait: 1m
+      group_interval: 10m
+      repeat_interval: 2h
+
+    # Business logic alerts - notify business team
+    - match_re:
+        alertname: '(LowCampaignSuccessRate|MessageProcessingStopped|UnusuallyHighMessageVolume)'
+      receiver: 'business-alerts'
+      group_wait: 2m
+      group_interval: 15m
+      repeat_interval: 4h
+
+    # Security alerts - notify security team
+    - match_re:
+        alertname: '(SuspiciousActivity|HighRateLimitViolations|AuthenticationFailures)'
+      receiver: 'security-alerts'
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 1h
+
+    # Database alerts - notify DBA team
+    - match_re:
+        alertname: '(DatabaseConnectionError|SlowDatabaseQueries|HighDatabaseConnections)'
+      receiver: 'database-alerts'
+      group_wait: 1m
+      group_interval: 5m
+      repeat_interval: 30m
+
+# Inhibition rules to prevent alert flooding
+inhibit_rules:
+  # Inhibit warning alerts when critical alerts are firing
+  - source_match:
+      severity: critical
+    target_match:
+      severity: warning
+    equal: ['alertname', 'service', 'instance']
+
+  # Inhibit high alerts when critical alerts are firing
+  - source_match:
+      severity: critical
+    target_match:
+      severity: high
+    equal: ['alertname', 'service', 'instance']
+
+  # Inhibit all other alerts when service is down
+  - source_match:
+      alertname: ServiceDown
+    target_match_re:
+      alertname: '(HighErrorRate|HighResponseTime|DatabaseConnectionError).*'
+    equal: ['service', 'instance']
+
+# Receiver configurations
+receivers:
+  # Default receiver for unmatched alerts
+  - name: 'default-receiver'
+    email_configs:
+      - to: '${DEFAULT_ALERT_EMAIL}'
+        subject: '[WhatsApp SaaS] Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Severity: {{ .Labels.severity }}
+          Instance: {{ .Labels.instance }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+  # Critical alerts - multiple channels with escalation
+  - name: 'critical-alerts'
+    # Slack notification
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#critical-alerts'
+        color: 'danger'
+        title: '🚨 CRITICAL ALERT'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          *Runbook:* {{ .Annotations.runbook_url }}
+          {{ end }}
+        actions:
+          - type: button
+            text: 'Acknowledge'
+            url: '${ALERT_MANAGER_URL}/#/alerts'
+          - type: button
+            text: 'Runbook'
+            url: '{{ .CommonAnnotations.runbook_url }}'
+
+    # Email notification
+    email_configs:
+      - to: '${CRITICAL_ALERT_EMAILS}'
+        subject: '🚨 [CRITICAL] WhatsApp SaaS Alert: {{ .GroupLabels.alertname }}'
+        html: |
+          <h2 style="color: red;">CRITICAL ALERT</h2>
+          {{ range .Alerts }}
+          <h3>{{ .Annotations.summary }}</h3>
+          <p><strong>Description:</strong> {{ .Annotations.description }}</p>
+          <p><strong>Service:</strong> {{ .Labels.service }}</p>
+          <p><strong>Instance:</strong> {{ .Labels.instance }}</p>
+          <p><strong>Started:</strong> {{ .StartsAt }}</p>
+          <p><a href="{{ .Annotations.runbook_url }}">View Runbook</a></p>
+          <hr>
+          {{ end }}
+
+    # SMS notification via webhook
+    webhook_configs:
+      - url: '${SMS_WEBHOOK_URL}'
+        send_resolved: true
+        http_config:
+          basic_auth:
+            username: '${SMS_WEBHOOK_USER}'
+            password: '${SMS_WEBHOOK_PASS}'
+        body: |
+          {
+            "message": "CRITICAL: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}",
+            "recipients": {{ .GroupLabels.oncall_phone | toJson }}
+          }
+
+  # Escalation to on-call
+  - name: 'escalation-oncall'
+    # PagerDuty integration
+    pagerduty_configs:
+      - routing_key: '${PAGERDUTY_INTEGRATION_KEY}'
+        description: '{{ range .Alerts }}{{ .Annotations.summary }}{{ end }}'
+        severity: 'critical'
+        details:
+          service: '{{ .GroupLabels.service }}'
+          instance: '{{ .GroupLabels.instance }}'
+          runbook: '{{ .CommonAnnotations.runbook_url }}'
+
+    # Phone call via webhook
+    webhook_configs:
+      - url: '${PHONE_ALERT_WEBHOOK_URL}'
+        http_config:
+          basic_auth:
+            username: '${PHONE_WEBHOOK_USER}'
+            password: '${PHONE_WEBHOOK_PASS}'
+        body: |
+          {
+            "type": "phone_call",
+            "message": "Critical WhatsApp SaaS alert requires immediate attention: {{ range .Alerts }}{{ .Annotations.summary }}{{ end }}",
+            "phone_numbers": {{ .GroupLabels.oncall_phones | toJson }}
+          }
+
+  # High severity alerts
+  - name: 'high-severity-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#alerts'
+        color: 'warning'
+        title: '⚠️ High Severity Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+
+    email_configs:
+      - to: '${HIGH_ALERT_EMAILS}'
+        subject: '⚠️ [HIGH] WhatsApp SaaS Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          {{ range .Alerts }}
+          Alert: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+  # Warning alerts
+  - name: 'warning-alerts'
+    slack_configs:
+      - api_url: '${SLACK_WEBHOOK_URL}'
+        channel: '#monitoring'
+        color: 'warning'
+        title: '⚠️ Warning Alert'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+
+  # Business alerts
+  - name: 'business-alerts'
+    email_configs:
+      - to: '${BUSINESS_TEAM_EMAILS}'
+        subject: '[Business Alert] {{ .GroupLabels.alertname }}'
+        body: |
+          A business metric alert has been triggered:
+          
+          {{ range .Alerts }}
+          Summary: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${BUSINESS_SLACK_WEBHOOK_URL}'
+        channel: '#business-alerts'
+        color: 'warning'
+        title: '📊 Business Metric Alert'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+
+  # Security alerts
+  - name: 'security-alerts'
+    email_configs:
+      - to: '${SECURITY_TEAM_EMAILS}'
+        subject: '🔒 [SECURITY] WhatsApp SaaS Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          A security alert has been triggered:
+          
+          {{ range .Alerts }}
+          Summary: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${SECURITY_SLACK_WEBHOOK_URL}'
+        channel: '#security-alerts'
+        color: 'danger'
+        title: '🔒 Security Alert'
+        text: |
+          {{ range .Alerts }}
+          *{{ .Annotations.summary }}*
+          {{ .Annotations.description }}
+          
+          *Service:* {{ .Labels.service }}
+          *Instance:* {{ .Labels.instance }}
+          {{ end }}
+
+  # Database alerts
+  - name: 'database-alerts'
+    email_configs:
+      - to: '${DBA_TEAM_EMAILS}'
+        subject: '🗄️ [DATABASE] WhatsApp SaaS Alert: {{ .GroupLabels.alertname }}'
+        body: |
+          A database alert has been triggered:
+          
+          {{ range .Alerts }}
+          Summary: {{ .Annotations.summary }}
+          Description: {{ .Annotations.description }}
+          Service: {{ .Labels.service }}
+          Instance: {{ .Labels.instance }}
+          Started: {{ .StartsAt }}
+          {{ end }}
+
+    slack_configs:
+      - api_url: '${DBA_SLACK_WEBHOOK_URL}'
+        channel: '#database-alerts'
+        color: 'warning'
+        title: '🗄️ Database Alert'
+        text: |
+          {{ range .Alerts }}
+          {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}
+
+# Mute/silence configurations
+silences:
+  # Example: Maintenance windows
+  - matchers:
+      - name: alertname
+        value: ServiceDown
+      - name: instance
+        value: api-server-1
+    starts_at: '2024-01-15T02:00:00Z'
+    ends_at: '2024-01-15T04:00:00Z'
+    created_by: 'maintenance@whatsapp-saas.com'
+    comment: 'Scheduled maintenance window'

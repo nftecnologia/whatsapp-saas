@@ -1,12 +1,30 @@
-FROM node:18-alpine
+# Development stage
+FROM node:18-alpine as development
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (including dev)
+RUN npm ci
+
+# Copy source code
+COPY . .
+
+# Default development command
+CMD ["npm", "run", "dev"]
+
+# Production stage
+FROM node:18-alpine as production
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install production dependencies only
+RUN npm ci --only=production && npm cache clean --force
 
 # Copy source code
 COPY . .
@@ -25,3 +43,6 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 
 # Start the application
 CMD ["npm", "start"]
+
+# Default to production
+FROM production

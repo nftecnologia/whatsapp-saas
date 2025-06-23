@@ -6,6 +6,7 @@ import {
   UsersIcon,
   DocumentTextIcon,
   SpeakerWaveIcon,
+  PaperAirplaneIcon,
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Contatos', href: '/contacts', icon: UsersIcon },
   { name: 'Templates', href: '/templates', icon: DocumentTextIcon },
   { name: 'Campanhas', href: '/campaigns', icon: SpeakerWaveIcon },
+  { name: 'Envio', href: '/dispatch', icon: PaperAirplaneIcon },
   { name: 'Logs', href: '/logs', icon: ChartBarIcon },
   { name: 'Configurações', href: '/settings', icon: Cog6ToothIcon },
 ];

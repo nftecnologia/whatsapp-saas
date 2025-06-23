@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Contacts from './pages/Contacts';
 import Templates from './pages/Templates';
 import Campaigns from './pages/Campaigns';
+import MessageDispatch from './pages/MessageDispatch';
 import MessageLogs from './pages/MessageLogs';
 
 function App() {
@@ -32,6 +33,7 @@ function App() {
         <Route path="contacts" element={<Contacts />} />
         <Route path="templates" element={<Templates />} />
         <Route path="campaigns" element={<Campaigns />} />
+        <Route path="dispatch" element={<MessageDispatch />} />
         <Route path="logs" element={<MessageLogs />} />
         <Route path="settings" element={<div>Configurações em desenvolvimento...</div>} />
       </Route>

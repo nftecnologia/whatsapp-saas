@@ -1,0 +1,148 @@
+# Prometheus Configuration for WhatsApp SaaS Platform
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'whatsapp-saas'
+    environment: '${ENVIRONMENT:-production}'
+
+# Alert manager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - 'alertmanager:9093'
+
+# Rules configuration
+rule_files:
+  - "alert_rules.yml"
+  - "recording_rules.yml"
+
+# Scrape configurations
+scrape_configs:
+  # WhatsApp SaaS API Service
+  - job_name: 'whatsapp-saas-api'
+    static_configs:
+      - targets: ['localhost:3000']
+    metrics_path: '/health/prometheus'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: true
+    params:
+      format: ['prometheus']
+    
+    # Relabeling for better metric organization
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        target_label: service
+        replacement: 'api'
+      - source_labels: [instance]
+        target_label: instance
+        regex: '([^:]+).*'
+        replacement: '${1}'
+
+  # WhatsApp SaaS Worker Service
+  - job_name: 'whatsapp-saas-worker'
+    static_configs:
+      - targets: ['localhost:3001']
+    metrics_path: '/health/prometheus'
+    scrape_interval: 15s
+    scrape_timeout: 10s
+    honor_labels: true
+    
+    metric_relabel_configs:
+      - source_labels: [__name__]
+        target_label: service
+        replacement: 'worker'
+
+  # PostgreSQL Database Metrics (using postgres_exporter)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+    
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'postgres-exporter:9187'
+
+  # Redis Metrics (using redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+    
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'redis-exporter:9121'
+
+  # RabbitMQ Metrics (using rabbitmq_prometheus plugin)
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # cAdvisor for container metrics (if using Docker)
+  - job_name: 'cadvisor'
+    static_configs:
+      - targets: ['cadvisor:8080']
+    scrape_interval: 30s
+    metrics_path: '/metrics'
+
+  # Blackbox exporter for external service monitoring
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - 'https://api.whatsapp-saas.com/health'
+        - 'https://evolution-api.whatsapp-saas.com/manager/health'
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: 'blackbox-exporter:9115'
+
+  # Evolution API health monitoring
+  - job_name: 'evolution-api'
+    static_configs:
+      - targets: ['evolution-api:8080']
+    metrics_path: '/health'
+    scrape_interval: 30s
+    honor_labels: true
+
+# Remote write configuration (for long-term storage)
+remote_write:
+  - url: '${REMOTE_WRITE_URL}'
+    basic_auth:
+      username: '${REMOTE_WRITE_USERNAME}'
+      password: '${REMOTE_WRITE_PASSWORD}'
+    write_relabel_configs:
+      - source_labels: [__name__]
+        regex: 'whatsapp_saas_.*'
+        action: keep
+
+# Storage configuration
+storage:
+  tsdb:
+    retention.time: 30d
+    retention.size: 50GB
+    path: '/prometheus/data'
+    wal-compression: true
