@@ -1,8 +1,17 @@
-[phases.build]
-cmd = "echo 'Using Dockerfile instead of nixpacks'"
+[variables]
+NODE_ENV = "production"
+AUTHENTICATION_API_KEY = "whatsapp_saas_evolution_prod_key_2024"
+SERVER_PORT = "8080"
 
 [phases.install]
-cmd = "echo 'Using Dockerfile instead of nixpacks'"
+dependsOn = ["setup"]
+cmds = ["npm ci"]
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm-9_x"]
 
 [start]
-cmd = "echo 'Using Dockerfile instead of nixpacks'"
+cmd = "npm start"
+
+[phases.post-build]
+cmds = ["echo 'Evolution API build completed successfully'"]

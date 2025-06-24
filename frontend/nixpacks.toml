@@ -1,8 +1,22 @@
-[phases.build]
-cmd = "echo 'Using Dockerfile instead of nixpacks'"
+[variables]
+NODE_ENV = "production"
 
 [phases.install]
-cmd = "echo 'Using Dockerfile instead of nixpacks'"
+dependsOn = ["setup"]
+cmds = ["npm ci"]
+
+[phases.build]
+dependsOn = ["install"]
+cmds = ["npm run build"]
+
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm-9_x"]
 
 [start]
-cmd = "echo 'Using Dockerfile instead of nixpacks'"
+cmd = "npm run preview"
+
+[staticAssets]
+dir = "dist"
+
+[phases.post-build]
+cmds = ["echo 'Frontend build completed successfully'"]

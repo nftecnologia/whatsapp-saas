@@ -1,0 +1,15 @@
+# EMERGENCY NIXPACKS CONFIG - FRONTEND
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm"]
+
+[phases.install]
+cmd = "npm ci"
+
+[phases.build]
+cmd = "npm run build"
+
+[start]
+cmd = "npx serve -s dist -l 8080"
+
+[variables]
+NODE_ENV = "production"

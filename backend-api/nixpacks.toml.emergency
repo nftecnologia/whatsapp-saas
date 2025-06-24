@@ -1,0 +1,15 @@
+# EMERGENCY NIXPACKS CONFIG - BACKEND API
+[phases.setup]
+nixPkgs = ["nodejs-18_x", "npm"]
+
+[phases.install]
+cmd = "npm ci"
+
+[phases.build]
+cmd = "npm run build"
+
+[start]
+cmd = "npm start"
+
+[variables]
+NODE_ENV = "production"
