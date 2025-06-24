@@ -25,12 +25,14 @@ export class MessageProcessor {
 
       const formattedPhone = evolutionApiService.formatPhoneNumber(job.phone);
       
-      console.log(`📱 Sending message to ${formattedPhone} via ${integration.instance_key}`);
+      console.log(`📱 Sending message to ${formattedPhone} via ${integration.instance_key} (${integration.integration_type || 'WHATSAPP-BAILEYS'})`);
       
-      const response = await evolutionApiService.sendTextMessage(
+      // Use the smart message sending method that auto-detects or uses the integration type
+      const response = await evolutionApiService.sendMessage(
         integration.instance_key,
         formattedPhone,
-        job.message_content
+        job.message_content,
+        integration.integration_type || 'WHATSAPP-BAILEYS'
       );
 
       await this.handleResponse(job, response, integration);

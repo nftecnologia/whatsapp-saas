@@ -1,6 +1,6 @@
 import { jest } from '@jest/globals';
 import axios from 'axios';
-import evolutionApiService from '@/services/evolutionApiService';
+import evolutionApiService, { CloudAPIConfig, InstanceConfig, CloudAPIMessage } from '../../src/services/evolutionApiService';
 
 // Mock axios
 jest.mock('axios');
@@ -417,6 +417,393 @@ describe('EvolutionAPIService', () => {
 
       invalidNumbers.forEach(phone => {
         expect(evolutionApiService.isValidPhone(phone)).toBe(false);
+      });
+    });
+  });
+
+  describe('Cloud API Integration', () => {
+    const mockCloudAPIConfig: CloudAPIConfig = {
+      accessToken: 'EAAtest123456789',
+      phoneNumberId: '123456789012345',
+      businessAccountId: '987654321098765',
+      webhookVerifyToken: 'test-webhook-token'
+    };
+
+    describe('createCloudAPIInstance', () => {
+      it('should successfully create a Cloud API instance', async () => {
+        // Arrange
+        const config: InstanceConfig = {
+          instanceName: 'cloud-test-instance',
+          instanceKey: 'cloud-test-key',
+          integration: 'WHATSAPP-CLOUD-API',
+          cloudApiConfig: mockCloudAPIConfig,
+          webhookUrl: 'https://example.com/webhook'
+        };
+
+        const mockResponse = {
+          status: 201,
+          data: {
+            instance: {
+              instanceName: config.instanceName,
+              integration: 'WHATSAPP-CLOUD-API',
+              status: 'created',
+              cloudApiConfig: mockCloudAPIConfig
+            }
+          }
+        };
+
+        mockAxiosInstance.post.mockResolvedValue(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.createCloudAPIInstance(config);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith('/instance/create', {
+          instanceName: config.instanceName,
+          token: 'test-api-key',
+          qrcode: false,
+          integration: 'WHATSAPP-CLOUD-API',
+          cloudApiConfig: mockCloudAPIConfig,
+          webhook: config.webhookUrl,
+          webhookByEvents: false,
+          events: [
+            'MESSAGE_RECEIVED',
+            'MESSAGE_STATUS_UPDATE',
+            'INSTANCE_STATUS_UPDATE',
+            'QRCODE_UPDATED',
+            'CONNECTION_UPDATE'
+          ]
+        });
+        expect(result).toEqual({
+          success: true,
+          data: mockResponse.data
+        });
+      });
+
+      it('should validate Cloud API configuration', async () => {
+        // Arrange
+        const invalidConfig: InstanceConfig = {
+          instanceName: 'test-instance',
+          instanceKey: 'test-key',
+          integration: 'WHATSAPP-CLOUD-API'
+          // Missing cloudApiConfig
+        };
+
+        // Act & Assert
+        const result = await evolutionApiService.createCloudAPIInstance(invalidConfig);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('Cloud API configuration is required');
+      });
+    });
+
+    describe('sendCloudAPIMessage', () => {
+      it('should successfully send a Cloud API text message', async () => {
+        // Arrange
+        const instanceKey = 'cloud-test-instance';
+        const message: CloudAPIMessage = {
+          messaging_product: 'whatsapp',
+          to: '5511999999999',
+          type: 'text',
+          text: { body: 'Hello from Cloud API!' }
+        };
+
+        const mockResponse = {
+          status: 200,
+          data: {
+            messages: [{ id: 'wamid.test123' }]
+          }
+        };
+
+        mockAxiosInstance.post.mockResolvedValue(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendCloudAPIMessage(instanceKey, message);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          `/message/sendMessage/${instanceKey}`,
+          message
+        );
+        expect(result).toEqual({
+          success: true,
+          data: mockResponse.data,
+          messageId: 'wamid.test123'
+        });
+      });
+
+      it('should validate Cloud API message format', async () => {
+        // Arrange
+        const instanceKey = 'cloud-test-instance';
+        const invalidMessage = {
+          messaging_product: 'telegram', // Invalid
+          to: '5511999999999',
+          type: 'text',
+          text: { body: 'Hello!' }
+        } as CloudAPIMessage;
+
+        // Act
+        const result = await evolutionApiService.sendCloudAPIMessage(instanceKey, invalidMessage);
+
+        // Assert
+        expect(result.success).toBe(false);
+        expect(result.error).toContain('messaging_product must be "whatsapp"');
+      });
+
+      it('should send Cloud API template message', async () => {
+        // Arrange
+        const instanceKey = 'cloud-test-instance';
+        const phone = '+5511999999999';
+        const template = {
+          name: 'hello_world',
+          language: 'en_US',
+          parameters: [
+            { type: 'text' as const, text: 'John' }
+          ]
+        };
+
+        const mockResponse = {
+          status: 200,
+          data: {
+            messages: [{ id: 'wamid.template123' }]
+          }
+        };
+
+        mockAxiosInstance.post.mockResolvedValue(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendCloudAPITemplate(instanceKey, phone, template);
+
+        // Assert
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe('wamid.template123');
+      });
+    });
+
+    describe('Smart Message Sending', () => {
+      it('should auto-detect Cloud API and send message accordingly', async () => {
+        // Arrange
+        const instanceKey = 'cloud-test-instance';
+        const phone = '+5511999999999';
+        const message = 'Hello World!';
+
+        // Mock instance status to return Cloud API
+        const statusMockResponse = {
+          status: 200,
+          data: {
+            integration: 'WHATSAPP-CLOUD-API',
+            state: 'open'
+          }
+        };
+        mockAxiosInstance.get.mockResolvedValue(statusMockResponse);
+
+        // Mock Cloud API message send
+        const messageMockResponse = {
+          status: 200,
+          data: {
+            messages: [{ id: 'wamid.auto123' }]
+          }
+        };
+        mockAxiosInstance.post.mockResolvedValue(messageMockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendMessage(instanceKey, phone, message);
+
+        // Assert
+        expect(mockAxiosInstance.get).toHaveBeenCalledWith(`/instance/connectionState/${instanceKey}`);
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          `/message/sendMessage/${instanceKey}`,
+          expect.objectContaining({
+            messaging_product: 'whatsapp',
+            to: '5511999999999',
+            type: 'text',
+            text: { body: message }
+          })
+        );
+        expect(result.success).toBe(true);
+      });
+
+      it('should fallback to Baileys if integration detection fails', async () => {
+        // Arrange
+        const instanceKey = 'baileys-test-instance';
+        const phone = '+5511999999999';
+        const message = 'Hello World!';
+
+        // Mock instance status to fail
+        mockAxiosInstance.get.mockRejectedValue(new Error('Instance not found'));
+
+        // Mock Baileys message send
+        const messageMockResponse = {
+          status: 200,
+          data: {
+            messageId: 'baileys-msg-123',
+            key: { id: 'baileys-msg-123' }
+          }
+        };
+        mockAxiosInstance.post.mockResolvedValue(messageMockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendMessage(instanceKey, phone, message);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledWith(
+          `/message/sendText/${instanceKey}`,
+          {
+            number: '5511999999999',
+            text: message
+          }
+        );
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe('Instance Management', () => {
+      it('should get Cloud API instance status', async () => {
+        // Arrange
+        const instanceKey = 'cloud-test-instance';
+        const mockResponse = {
+          status: 200,
+          data: {
+            integration: 'WHATSAPP-CLOUD-API',
+            state: 'open',
+            phoneNumber: '+5511999999999'
+          }
+        };
+
+        mockAxiosInstance.get.mockResolvedValue(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.getCloudAPIInstanceStatus(instanceKey);
+
+        // Assert
+        expect(result.success).toBe(true);
+        expect(result.data.isCloudAPI).toBe(true);
+      });
+
+      it('should update webhook configuration', async () => {
+        // Arrange
+        const instanceKey = 'cloud-test-instance';
+        const webhookUrl = 'https://example.com/webhook';
+        const events = ['MESSAGE_RECEIVED', 'MESSAGE_STATUS_UPDATE'];
+
+        const mockResponse = {
+          status: 200,
+          data: { message: 'Webhook updated successfully' }
+        };
+
+        mockAxiosInstance.put.mockResolvedValue(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.updateCloudAPIWebhook(instanceKey, webhookUrl, events);
+
+        // Assert
+        expect(mockAxiosInstance.put).toHaveBeenCalledWith(`/webhook/set/${instanceKey}`, {
+          webhook: webhookUrl,
+          webhookByEvents: true,
+          events
+        });
+        expect(result.success).toBe(true);
+      });
+    });
+
+    describe('Error Handling and Retries', () => {
+      it('should retry on network errors', async () => {
+        // Arrange
+        const instanceKey = 'test-instance';
+        const phone = '+5511999999999';
+        const message = 'Test message';
+
+        // First call fails with network error
+        const networkError = { code: 'ECONNRESET', message: 'Connection reset' };
+        // Second call succeeds
+        const mockResponse = {
+          status: 200,
+          data: { messageId: 'retry-success-123' }
+        };
+
+        mockAxiosInstance.post
+          .mockRejectedValueOnce(networkError)
+          .mockResolvedValueOnce(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendTextMessage(instanceKey, phone, message);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe('retry-success-123');
+      });
+
+      it('should retry on 5xx server errors', async () => {
+        // Arrange
+        const instanceKey = 'test-instance';
+        const phone = '+5511999999999';
+        const message = 'Test message';
+
+        const serverError = {
+          response: { status: 502, data: { message: 'Bad Gateway' } }
+        };
+        const mockResponse = {
+          status: 200,
+          data: { messageId: 'server-retry-123' }
+        };
+
+        mockAxiosInstance.post
+          .mockRejectedValueOnce(serverError)
+          .mockResolvedValueOnce(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendTextMessage(instanceKey, phone, message);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
+        expect(result.success).toBe(true);
+      });
+
+      it('should not retry on 4xx client errors', async () => {
+        // Arrange
+        const instanceKey = 'test-instance';
+        const phone = '+5511999999999';
+        const message = 'Test message';
+
+        const clientError = {
+          response: { status: 400, data: { message: 'Bad Request' } }
+        };
+
+        mockAxiosInstance.post.mockRejectedValue(clientError);
+
+        // Act
+        const result = await evolutionApiService.sendTextMessage(instanceKey, phone, message);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledTimes(1); // No retry
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('Bad Request');
+      });
+
+      it('should handle rate limiting with retry', async () => {
+        // Arrange
+        const instanceKey = 'test-instance';
+        const phone = '+5511999999999';
+        const message = 'Test message';
+
+        const rateLimitError = {
+          response: { status: 429, data: { message: 'Rate limit exceeded' } }
+        };
+        const mockResponse = {
+          status: 200,
+          data: { messageId: 'rate-limit-retry-123' }
+        };
+
+        mockAxiosInstance.post
+          .mockRejectedValueOnce(rateLimitError)
+          .mockResolvedValueOnce(mockResponse);
+
+        // Act
+        const result = await evolutionApiService.sendTextMessage(instanceKey, phone, message);
+
+        // Assert
+        expect(mockAxiosInstance.post).toHaveBeenCalledTimes(2);
+        expect(result.success).toBe(true);
       });
     });
   });

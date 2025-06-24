@@ -10,6 +10,7 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
+  LinkIcon,
 } from '@heroicons/react/24/outline';
 import { cn } from '@/utils/cn';
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Campanhas', href: '/campaigns', icon: SpeakerWaveIcon },
   { name: 'Envio', href: '/dispatch', icon: PaperAirplaneIcon },
   { name: 'Logs', href: '/logs', icon: ChartBarIcon },
+  { name: 'Integrações', href: '/integrations', icon: LinkIcon },
   { name: 'Configurações', href: '/settings', icon: Cog6ToothIcon },
 ];
 

@@ -401,6 +401,115 @@ class ApiService {
     const response = await this.client.delete(`/users/${id}`);
     return response.data;
   }
+
+  // WhatsApp Integrations endpoints
+  async getWhatsAppIntegrations(params?: {
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const response = await this.client.get('/integrations/whatsapp', { params });
+    return response.data;
+  }
+
+  async getWhatsAppIntegration(id: string) {
+    const response = await this.client.get(`/integrations/whatsapp/${id}`);
+    return response.data;
+  }
+
+  async createWhatsAppIntegration(data: {
+    instance_name: string;
+    instance_key: string;
+    meta_token?: string;
+    meta_app_id?: string;
+    meta_phone_number_id?: string;
+    webhook_verify_token?: string;
+  }) {
+    const response = await this.client.post('/integrations/whatsapp', data);
+    return response.data;
+  }
+
+  async updateWhatsAppIntegration(id: string, data: Partial<{
+    instance_name: string;
+    instance_key: string;
+    meta_token: string;
+    meta_app_id: string;
+    meta_phone_number_id: string;
+    webhook_verify_token: string;
+    is_active: boolean;
+  }>) {
+    const response = await this.client.put(`/integrations/whatsapp/${id}`, data);
+    return response.data;
+  }
+
+  async deleteWhatsAppIntegration(id: string) {
+    const response = await this.client.delete(`/integrations/whatsapp/${id}`);
+    return response.data;
+  }
+
+  async connectWhatsAppIntegration(id: string) {
+    const response = await this.client.post(`/integrations/whatsapp/${id}/connect`);
+    return response.data;
+  }
+
+  async disconnectWhatsAppIntegration(id: string) {
+    const response = await this.client.post(`/integrations/whatsapp/${id}/disconnect`);
+    return response.data;
+  }
+
+  async getWhatsAppIntegrationQRCode(id: string) {
+    const response = await this.client.get(`/integrations/whatsapp/${id}/qr`);
+    return response.data;
+  }
+
+  async refreshWhatsAppIntegrationStatus(id: string) {
+    const response = await this.client.post(`/integrations/whatsapp/${id}/refresh`);
+    return response.data;
+  }
+
+  async getWhatsAppIntegrationStats() {
+    const response = await this.client.get('/integrations/whatsapp/stats');
+    return response.data;
+  }
+
+  // Enhanced WhatsApp Integration methods
+  async validateMetaToken(token: string) {
+    const response = await this.client.post('/integrations/whatsapp/validate-token', { token });
+    return response.data;
+  }
+
+  async testWhatsAppIntegration(id: string) {
+    const response = await this.client.post(`/integrations/whatsapp/${id}/test`);
+    return response.data;
+  }
+
+  async getIntegrationSetupSteps(id: string) {
+    const response = await this.client.get(`/integrations/whatsapp/${id}/setup-steps`);
+    return response.data;
+  }
+
+  async updateSetupStep(id: string, stepId: string, data: any) {
+    const response = await this.client.put(`/integrations/whatsapp/${id}/setup-steps/${stepId}`, data);
+    return response.data;
+  }
+
+  async getIntegrationHealth(id: string) {
+    const response = await this.client.get(`/integrations/whatsapp/${id}/health`);
+    return response.data;
+  }
+
+  async bulkIntegrationOperation(data: {
+    operation: 'connect' | 'disconnect' | 'refresh' | 'test' | 'delete';
+    integration_ids: string[];
+  }) {
+    const response = await this.client.post('/integrations/whatsapp/bulk', data);
+    return response.data;
+  }
+
+  async getBulkOperationStatus(operationId: string) {
+    const response = await this.client.get(`/integrations/whatsapp/bulk/${operationId}`);
+    return response.data;
+  }
 }
 
 export default new ApiService();

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import monitoringService, { AlertRule } from '@/services/monitoringService';
-import { auth } from '@/middleware/auth';
-import { validateBody } from '@/middleware/validation';
+import { authenticateToken } from '@/middleware/auth';
+import { validateRequest } from '@/middleware/validation';
 import { z } from 'zod';
 import logger from '@/utils/logger';
 
@@ -27,7 +27,7 @@ const alertRuleSchema = z.object({
  * @desc Get monitoring service status
  * @access Private (Admin)
  */
-router.get('/status', auth, async (req, res) => {
+router.get('/status', authenticateToken, async (req, res) => {
   try {
     const status = monitoringService.getStatus();
     
@@ -54,7 +54,7 @@ router.get('/status', auth, async (req, res) => {
  * @desc Get active alerts
  * @access Private (Admin)
  */
-router.get('/alerts', auth, async (req, res) => {
+router.get('/alerts', authenticateToken, async (req, res) => {
   try {
     const alerts = monitoringService.getActiveAlerts();
     
@@ -82,7 +82,7 @@ router.get('/alerts', auth, async (req, res) => {
  * @desc Acknowledge an alert
  * @access Private (Admin)
  */
-router.post('/alerts/:alertId/acknowledge', auth, async (req, res) => {
+router.post('/alerts/:alertId/acknowledge', authenticateToken, async (req, res) => {
   try {
     const { alertId } = req.params;
     const acknowledged = monitoringService.acknowledgeAlert(alertId);
@@ -124,7 +124,7 @@ router.post('/alerts/:alertId/acknowledge', auth, async (req, res) => {
  * @desc Get all alert rules
  * @access Private (Admin)
  */
-router.get('/rules', auth, async (req, res) => {
+router.get('/rules', authenticateToken, async (req, res) => {
   try {
     const rules = monitoringService.getAlertRules();
     
@@ -152,7 +152,7 @@ router.get('/rules', auth, async (req, res) => {
  * @desc Add a new alert rule
  * @access Private (Admin)
  */
-router.post('/rules', auth, validateBody(alertRuleSchema), async (req, res) => {
+router.post('/rules', authenticateToken, validateRequest({ body: alertRuleSchema }), async (req, res) => {
   try {
     const ruleData = req.body as AlertRule;
     
@@ -197,7 +197,7 @@ router.post('/rules', auth, validateBody(alertRuleSchema), async (req, res) => {
  * @desc Remove an alert rule
  * @access Private (Admin)
  */
-router.delete('/rules/:ruleId', auth, async (req, res) => {
+router.delete('/rules/:ruleId', authenticateToken, async (req, res) => {
   try {
     const { ruleId } = req.params;
     const removed = monitoringService.removeAlertRule(ruleId);
@@ -239,7 +239,7 @@ router.delete('/rules/:ruleId', auth, async (req, res) => {
  * @desc Test an alert rule
  * @access Private (Admin)
  */
-router.post('/test/:ruleId', auth, async (req, res) => {
+router.post('/test/:ruleId', authenticateToken, async (req, res) => {
   try {
     const { ruleId } = req.params;
     const tested = await monitoringService.testAlert(ruleId);
@@ -281,7 +281,7 @@ router.post('/test/:ruleId', auth, async (req, res) => {
  * @desc Start monitoring service
  * @access Private (Admin)
  */
-router.post('/start', auth, async (req, res) => {
+router.post('/start', authenticateToken, async (req, res) => {
   try {
     monitoringService.start();
     
@@ -311,7 +311,7 @@ router.post('/start', auth, async (req, res) => {
  * @desc Stop monitoring service
  * @access Private (Admin)
  */
-router.post('/stop', auth, async (req, res) => {
+router.post('/stop', authenticateToken, async (req, res) => {
   try {
     monitoringService.stop();
     
@@ -341,7 +341,7 @@ router.post('/stop', auth, async (req, res) => {
  * @desc Get dashboard data for monitoring overview
  * @access Private (Admin)
  */
-router.get('/dashboard', auth, async (req, res) => {
+router.get('/dashboard', authenticateToken, async (req, res) => {
   try {
     const status = monitoringService.getStatus();
     const alerts = monitoringService.getActiveAlerts();

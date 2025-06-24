@@ -1,0 +1,69 @@
+{
+  "mcpServers": {
+    "railway": {
+      "command": "railway",
+      "args": ["mcp"],
+      "env": {
+        "RAILWAY_TOKEN": "${RAILWAY_TOKEN}"
+      }
+    }
+  },
+  "projectConfig": {
+    "name": "whatsapp-saas-production",
+    "services": {
+      "frontend": {
+        "type": "web",
+        "source": "./frontend",
+        "buildCommand": "npm run build",
+        "startCommand": "npm run start",
+        "environment": {
+          "NODE_ENV": "production",
+          "VITE_STACK_AUTH_PROJECT_ID": "36ac5c46-cfff-4dea-9142-bfe2aecf37db",
+          "VITE_STACK_AUTH_PUBLISHABLE_KEY": "pck_y7r6v2pm3pnefvc834agzv9y98dfqr73q7azbrrs4q6r8"
+        }
+      },
+      "backend-api": {
+        "type": "web",
+        "source": "./backend-api",
+        "buildCommand": "npm run build",
+        "startCommand": "npm run start",
+        "environment": {
+          "NODE_ENV": "production",
+          "PORT": "3000",
+          "STACK_AUTH_PROJECT_ID": "36ac5c46-cfff-4dea-9142-bfe2aecf37db",
+          "STACK_AUTH_PUBLISHABLE_KEY": "pck_y7r6v2pm3pnefvc834agzv9y98dfqr73q7azbrrs4q6r8",
+          "STACK_AUTH_SECRET_KEY": "ssk_7p2j367p86b4q3qa3z56111q1zf305585epzmrkqsf940",
+          "CLOUDAMQP_URL": "amqps://qqdwzdbt:P5QYz582yO7fw55ntEEz_oShlGMgRg4T@leopard.lmq.cloudamqp.com/qqdwzdbt"
+        }
+      },
+      "backend-worker": {
+        "type": "worker",
+        "source": "./backend-worker",
+        "buildCommand": "npm run build",
+        "startCommand": "npm run start",
+        "environment": {
+          "NODE_ENV": "production",
+          "CLOUDAMQP_URL": "amqps://qqdwzdbt:P5QYz582yO7fw55ntEEz_oShlGMgRg4T@leopard.lmq.cloudamqp.com/qqdwzdbt"
+        }
+      },
+      "evolution-api": {
+        "type": "web",
+        "image": "atendai/evolution-api:v2",
+        "environment": {
+          "AUTHENTICATION_API_KEY": "whatsapp_saas_evolution_prod_key_2024",
+          "SERVER_PORT": "8080"
+        }
+      }
+    },
+    "plugins": [
+      {
+        "name": "postgresql",
+        "type": "postgresql"
+      },
+      {
+        "name": "redis",
+        "type": "redis"
+      }
+    ]
+  }
+}

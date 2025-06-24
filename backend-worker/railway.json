@@ -5,8 +5,27 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "numReplicas": 1,
-    "restartPolicyType": "ON_FAILURE",
+    "numReplicas": 3,
+    "restartPolicyType": "ALWAYS",
     "restartPolicyMaxRetries": 10
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "NODE_ENV": "production",
+        "DATABASE_URL": "${{Postgres.DATABASE_URL}}",
+        "REDIS_URL": "${{Redis.REDIS_URL}}",
+        "RABBITMQ_URL": "${{CLOUDAMQP_URL}}",
+        "EVOLUTION_API_BASE_URL": "http://${{evolution-api.RAILWAY_PRIVATE_DOMAIN}}:8080",
+        "EVOLUTION_API_KEY": "whatsapp_saas_evolution_prod_key_2024",
+        "EVOLUTION_API_TIMEOUT": "30000",
+        "WORKER_CONCURRENCY": "5",
+        "MAX_RETRY_ATTEMPTS": "3",
+        "RETRY_DELAY_MS": "5000",
+        "DEAD_LETTER_TTL": "86400000",
+        "ENABLE_API_VALIDATION": "true",
+        "ENABLE_REQUEST_LOGGING": "true"
+      }
+    }
   }
 }

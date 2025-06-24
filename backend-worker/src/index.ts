@@ -16,7 +16,7 @@ import rabbitmq from '@/config/rabbitmq';
 import { MessageProcessor } from '@/services/messageProcessor';
 import { SendMessageJob } from '@/types';
 import logger from '@/utils/logger';
-import { createHealthServer } from '@/server';
+// import { createHealthServer } from '@/server';
 import healthService from '@/services/healthService';
 
 const WORKER_ID = workerSecurityLogger.getWorkerId();
@@ -51,13 +51,13 @@ class WorkerService {
       
       await this.startMessageConsumer();
       
-      // Start health server
-      const healthPort = config.HEALTH_CHECK_PORT;
-      this.healthServer = createHealthServer(healthPort);
+      // Start health server (temporarily disabled due to missing express dependency)
+      // const healthPort = config.HEALTH_CHECK_PORT;
+      // this.healthServer = createHealthServer(healthPort);
       
       this.isRunning = true;
       logger.info(`✅ Worker ${WORKER_ID} started successfully`);
-      logger.info(`🏥 Health check: http://localhost:${healthPort}/health`);
+      // logger.info(`🏥 Health check: http://localhost:${healthPort}/health`);
       logger.info(`🔒 Security: Enhanced validation enabled`);
       logger.info(`📊 Concurrency: ${config.WORKER_CONCURRENCY} concurrent jobs`);
       

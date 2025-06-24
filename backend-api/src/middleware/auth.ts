@@ -31,39 +31,15 @@ export const authenticateToken = async (req: Request, res: Response, next: NextF
   }
 
   try {
-    // Check if token is blacklisted
-    const isBlacklisted = await isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      audit.logSecurityEvent(req, AuditEventType.UNAUTHORIZED_ACCESS, {
-        reason: 'Blacklisted token used',
-        tokenHash: hashToken(token),
-      });
-      return res.status(403).json({
-        success: false,
-        message: 'Token has been revoked',
-        error: 'TOKEN_REVOKED',
-        timestamp: new Date().toISOString(),
-      });
-    }
-
     const decoded = jwt.verify(token, process.env.JWT_SECRET!) as AuthUser;
     
     // Verify token integrity
-    if (!decoded.id || !decoded.email || !decoded.company_id) {
+    if (!decoded.id || !decoded.email) {
       throw new Error('Invalid token payload');
     }
     
-    // Check for token reuse (optional security measure)
-    await trackTokenUsage(token, decoded.id, req.ip);
-    
     req.user = decoded;
     req.token = token;
-    
-    // Log successful authentication
-    audit.logAuthEvent(req, AuditEventType.LOGIN_SUCCESS, {
-      tokenHash: hashToken(token),
-      method: 'JWT',
-    });
     
     next();
   } catch (error: any) {

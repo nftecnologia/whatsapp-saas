@@ -426,5 +426,6 @@ function sanitizeBody(body: any): any {
 
 // Export singleton instance
 export const audit = AuditLogger.getInstance();
-export { AuditEventType, AuditLevel };
+// Temporarily commented to fix duplicate export error
+// export { AuditEventType, AuditLevel };
 export default audit;

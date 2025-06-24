@@ -17,6 +17,10 @@ class MetricsService {
   private readonly templatesTotal: promClient.Gauge;
   private readonly evolutionApiCallsTotal: promClient.Counter;
   private readonly evolutionApiCallDuration: promClient.Histogram;
+  private readonly whatsappInstancesTotal: promClient.Gauge;
+  private readonly whatsappInstanceEvents: promClient.Counter;
+  private readonly externalApiCallsTotal: promClient.Counter;
+  private readonly externalApiCallDuration: promClient.Histogram;
   
   // System Metrics
   private readonly memoryUsage: promClient.Gauge;
@@ -107,6 +111,35 @@ class MetricsService {
       name: 'whatsapp_saas_evolution_api_call_duration_seconds',
       help: 'Duration of Evolution API calls in seconds',
       labelNames: ['endpoint', 'method'],
+      buckets: [0.1, 0.5, 1, 2, 5, 10, 30],
+      registers: [this.register],
+    });
+
+    this.whatsappInstancesTotal = new promClient.Gauge({
+      name: 'whatsapp_saas_whatsapp_instances_total',
+      help: 'Total number of WhatsApp instances',
+      labelNames: ['company_id', 'status'],
+      registers: [this.register],
+    });
+
+    this.whatsappInstanceEvents = new promClient.Counter({
+      name: 'whatsapp_saas_whatsapp_instance_events_total',
+      help: 'Total number of WhatsApp instance events',
+      labelNames: ['event_type', 'company_id', 'instance_id'],
+      registers: [this.register],
+    });
+
+    this.externalApiCallsTotal = new promClient.Counter({
+      name: 'whatsapp_saas_external_api_calls_total',
+      help: 'Total number of external API calls',
+      labelNames: ['service', 'status', 'endpoint'],
+      registers: [this.register],
+    });
+
+    this.externalApiCallDuration = new promClient.Histogram({
+      name: 'whatsapp_saas_external_api_call_duration_seconds',
+      help: 'Duration of external API calls in seconds',
+      labelNames: ['service', 'endpoint'],
       buckets: [0.1, 0.5, 1, 2, 5, 10, 30],
       registers: [this.register],
     });
@@ -298,6 +331,45 @@ class MetricsService {
     this.evolutionApiCallDuration.observe({ endpoint, method }, duration / 1000);
   }
 
+  public setWhatsAppInstancesCount(companyId: string, status: 'connected' | 'disconnected' | 'error', count: number): void {
+    this.whatsappInstancesTotal.set({ company_id: companyId, status }, count);
+  }
+
+  public recordWhatsAppInstance(
+    eventType: 'created' | 'connected' | 'disconnected' | 'deleted' | 'failed',
+    companyId: string,
+    instanceId?: string
+  ): void {
+    this.whatsappInstanceEvents.inc({
+      event_type: eventType,
+      company_id: companyId,
+      instance_id: instanceId || 'unknown',
+    });
+
+    logger.logBusinessMetric('whatsapp_instance_event', 1, 'count', {
+      eventType,
+      companyId,
+      instanceId: instanceId || 'unknown',
+    });
+  }
+
+  public recordExternalApiCall(
+    service: 'evolution-api' | 'meta-api' | 'webhook',
+    status: 'success' | 'error',
+    duration?: number,
+    endpoint?: string
+  ): void {
+    this.externalApiCallsTotal.inc({
+      service,
+      status,
+      endpoint: endpoint || 'unknown',
+    });
+
+    if (duration !== undefined) {
+      this.externalApiCallDuration.observe({ service, endpoint: endpoint || 'unknown' }, duration / 1000);
+    }
+  }
+
   // System Metrics Methods
   public recordMemoryUsage(): void {
     const usage = process.memoryUsage();
@@ -383,8 +455,11 @@ class MetricsService {
       campaigns: this.extractMetricValue(metrics, 'whatsapp_saas_campaigns_total'),
       contacts: this.extractMetricValue(metrics, 'whatsapp_saas_contacts_total'),
       templates: this.extractMetricValue(metrics, 'whatsapp_saas_templates_total'),
+      whatsappInstances: this.extractMetricValue(metrics, 'whatsapp_saas_whatsapp_instances_total'),
+      whatsappInstanceEvents: this.extractMetricValue(metrics, 'whatsapp_saas_whatsapp_instance_events_total'),
       errors: this.extractMetricValue(metrics, 'whatsapp_saas_errors_total'),
       apiCalls: this.extractMetricValue(metrics, 'whatsapp_saas_evolution_api_calls_total'),
+      externalApiCalls: this.extractMetricValue(metrics, 'whatsapp_saas_external_api_calls_total'),
     };
   }
 

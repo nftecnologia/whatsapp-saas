@@ -12,7 +12,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backend-api/src/database/schema.sql:/docker-entrypoint-initdb.d/schema.sql
     ports:
-      - "5432:5432"
+      - "5434:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 10s
@@ -23,7 +23,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6381:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -51,28 +51,62 @@ services:
 
   # Backend API
   backend-api:
-    build: ./backend-api
+    build:
+      context: ./backend-api
+      target: development
     ports:
-      - "3000:3000"
+      - "3003:3000"
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
       PORT: 3000
+      # Database
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/whatsapp_saas
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: whatsapp_saas
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSL: disable
+      DB_MAX_CONNECTIONS: 20
+      # Redis
       REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      # RabbitMQ
       RABBITMQ_URL: amqp://rabbitmq:rabbitmq@rabbitmq:5672
-      STACK_AUTH_PROJECT_ID: ${STACK_AUTH_PROJECT_ID}
-      STACK_AUTH_PUBLISHABLE_KEY: ${STACK_AUTH_PUBLISHABLE_KEY}
-      STACK_AUTH_SECRET_KEY: ${STACK_AUTH_SECRET_KEY}
-      JWT_SECRET: ${JWT_SECRET}
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: rabbitmq
+      RABBITMQ_PASSWORD: rabbitmq
+      RABBITMQ_VHOST: /
+      # JWT
+      JWT_SECRET: whatsapp_saas_jwt_secret_key_development_32_chars_minimum
+      JWT_EXPIRES_IN: 24h
+      JWT_REFRESH_EXPIRES_IN: 7d
+      BCRYPT_ROUNDS: 10
+      # Stack Auth
+      STACK_AUTH_PROJECT_ID: development-project-id
+      STACK_AUTH_PUBLISHABLE_KEY: development-publishable-key
+      STACK_AUTH_SECRET_KEY: development-secret-key
+      # Evolution API v2
+      EVOLUTION_API_BASE_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: whatsapp_saas_evolution_cloud_api_key_2024
+      EVOLUTION_API_TIMEOUT: 30000
+      # Queue
       SEND_MESSAGE_QUEUE: send_message
+      # Security & Rate Limiting
       RATE_LIMIT_WINDOW: 900000
       RATE_LIMIT_MAX: 100
+      ALLOWED_ORIGINS: http://localhost:8080,http://localhost:3000,http://localhost:5173,http://127.0.0.1:8080
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
       rabbitmq:
+        condition: service_healthy
+      evolution-api:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
@@ -83,19 +117,47 @@ services:
 
   # Backend Worker
   backend-worker:
-    build: ./backend-worker
+    build:
+      context: ./backend-worker
+      target: development
     environment:
-      NODE_ENV: production
+      NODE_ENV: development
+      PORT: 3001
+      # Database
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/whatsapp_saas
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: whatsapp_saas
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_SSL: disable
+      DB_MAX_CONNECTIONS: 10
+      # Redis
       REDIS_URL: redis://redis:6379
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      # RabbitMQ
       RABBITMQ_URL: amqp://rabbitmq:rabbitmq@rabbitmq:5672
-      EVOLUTION_API_BASE_URL: ${EVOLUTION_API_BASE_URL}
-      EVOLUTION_API_GLOBAL_KEY: ${EVOLUTION_API_GLOBAL_KEY}
-      SEND_MESSAGE_QUEUE: send_message
-      DEAD_LETTER_QUEUE: send_message_dlq
-      MAX_RETRIES: 3
-      RETRY_DELAY: 5000
-      PROCESSING_TIMEOUT: 30000
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: rabbitmq
+      RABBITMQ_PASSWORD: rabbitmq
+      RABBITMQ_VHOST: /
+      RABBITMQ_QUEUE: send_message
+      RABBITMQ_DEAD_LETTER_QUEUE: send_message_dlx
+      # Evolution API v2
+      EVOLUTION_API_BASE_URL: http://evolution-api:8080
+      EVOLUTION_API_KEY: whatsapp_saas_evolution_cloud_api_key_2024
+      EVOLUTION_API_TIMEOUT: 30000
+      # Worker configuration
+      WORKER_CONCURRENCY: 5
+      MAX_RETRY_ATTEMPTS: 3
+      RETRY_DELAY_MS: 5000
+      DEAD_LETTER_TTL: 86400000
+      # Security configuration
+      ENABLE_API_VALIDATION: true
+      ENABLE_REQUEST_LOGGING: true
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,24 +165,80 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      evolution-api:
+        condition: service_healthy
     restart: unless-stopped
     deploy:
       replicas: 2
 
-  # Frontend
-  frontend:
-    build: ./frontend
+  # Evolution API v2 - WhatsApp Cloud API Integration
+  evolution-api:
+    image: atendai/evolution-api:v2
+    container_name: evolution_api_v2
     ports:
       - "8080:8080"
     environment:
-      VITE_API_URL: http://localhost:3000
-      VITE_STACK_AUTH_PROJECT_ID: ${STACK_AUTH_PROJECT_ID}
-      VITE_STACK_AUTH_PUBLISHABLE_KEY: ${STACK_AUTH_PUBLISHABLE_KEY}
+      # Authentication
+      AUTHENTICATION_API_KEY: whatsapp_saas_evolution_cloud_api_key_2024
+      # Database
+      DATABASE_ENABLED: true
+      DATABASE_CONNECTION_URI: postgresql://postgres:postgres@postgres:5432/whatsapp_saas
+      DATABASE_CONNECTION_CLIENT_NAME: evolution_api
+      # Redis
+      REDIS_ENABLED: true
+      REDIS_URI: redis://redis:6379
+      REDIS_PREFIX_KEY: evolution_api
+      # Webhook Global Configuration
+      WEBHOOK_GLOBAL_URL: http://backend-api:3000/webhooks/evolution
+      WEBHOOK_GLOBAL_ENABLED: true
+      WEBHOOK_GLOBAL_WEBHOOK_BY_EVENTS: true
+      # WhatsApp Cloud API Settings
+      WA_BUSINESS_TOKEN_WEBHOOK: whatsapp_cloud_api_webhook_token_2024
+      # Logging
+      LOG_LEVEL: info
+      LOG_COLOR: true
+      # Server
+      SERVER_TYPE: http
+      SERVER_PORT: 8080
+      # CORS
+      CORS_ORIGIN: http://localhost:8080,http://localhost:3000,http://localhost:5173
+      CORS_METHODS: GET,POST,PUT,DELETE,OPTIONS
+      CORS_CREDENTIALS: true
+    volumes:
+      - evolution_store:/evolution/store
+      - evolution_instances:/evolution/instances
     depends_on:
-      backend-api:
+      postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      target: development
+    ports:
+      - "3005:5173"
+    environment:
+      VITE_API_BASE_URL: http://localhost:3005/api
+      VITE_API_URL: http://localhost:3005
+      VITE_STACK_AUTH_PROJECT_ID: development-project-id
+      VITE_STACK_AUTH_PUBLISHABLE_KEY: development-publishable-key
+      VITE_EVOLUTION_API_URL: http://localhost:8080
+    depends_on:
+      backend-api:
+        condition: service_healthy
+      evolution-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5173"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -130,6 +248,8 @@ volumes:
   postgres_data:
   redis_data:
   rabbitmq_data:
+  evolution_store:
+  evolution_instances:
 
 networks:
   default:

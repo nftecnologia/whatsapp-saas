@@ -262,6 +262,39 @@ npm run db:reset         # Reset completo do banco
 - ✅ **Indexes** otimizados no banco
 - ✅ **Pagination** em todas as listagens
 
+## 🔐 Login de Teste (Desenvolvimento)
+
+**Usuário padrão criado automaticamente:**
+- **Email**: `admin@teste.com`
+- **Senha**: `teste123`
+- **Tipo**: Administrador
+- **Empresa**: Empresa Teste
+
+### Como Acessar:
+1. **Frontend**: http://localhost:8080
+2. **Faça login** com as credenciais acima
+3. **Explore**: Dashboard → Contatos → Templates → Campanhas
+
+### Resolução de Problemas:
+
+**Login não funciona:**
+```bash
+# Verificar logs da API
+docker-compose logs backend-api
+
+# Verificar saúde dos serviços  
+./docker-healthcheck.sh
+
+# Recriar usuário de teste
+curl -X POST http://localhost:3003/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@teste.com","password":"teste123","name":"Admin","companyName":"Teste","companyEmail":"test@test.com"}'
+```
+
+**Problemas de CORS:**
+- Verifique se `ALLOWED_ORIGINS` no `.env` inclui `http://localhost:8080`
+- Reinicie: `docker-compose restart`
+
 ## 🚀 Deploy
 
 Consulte o [DEPLOYMENT.md](./DEPLOYMENT.md) para instruções completas de deploy nos seguintes provedores:

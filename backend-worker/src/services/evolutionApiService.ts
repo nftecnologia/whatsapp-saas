@@ -1,15 +1,77 @@
 import axios, { AxiosInstance } from 'axios';
-import crypto from 'crypto';
-import { EvolutionAPIResponse } from '@/types';
+import * as crypto from 'crypto';
+import { EvolutionAPIResponse } from '../types';
+
+export interface CloudAPIConfig {
+  accessToken: string;
+  phoneNumberId: string;
+  businessAccountId: string;
+  webhookVerifyToken?: string;
+}
+
+export interface InstanceConfig {
+  instanceName: string;
+  instanceKey: string;
+  integration: 'WHATSAPP-BAILEYS' | 'WHATSAPP-CLOUD-API';
+  cloudApiConfig?: CloudAPIConfig;
+  qrcode?: boolean;
+  webhookUrl?: string;
+  webhookByEvents?: boolean;
+}
+
+export interface MessageTemplate {
+  name: string;
+  language: string;
+  parameters?: Array<{
+    type: 'text' | 'currency' | 'date_time' | 'image' | 'document' | 'video';
+    text?: string;
+    currency?: { fallback_value: string; code: string; amount_1000: number };
+    date_time?: { fallback_value: string };
+    image?: { link: string };
+    document?: { link: string; filename?: string };
+    video?: { link: string };
+  }>;
+}
+
+export interface CloudAPIMessage {
+  messaging_product: 'whatsapp';
+  to: string;
+  type: 'text' | 'image' | 'document' | 'video' | 'audio' | 'template';
+  text?: { body: string };
+  image?: { link: string; caption?: string };
+  document?: { link: string; caption?: string; filename?: string };
+  video?: { link: string; caption?: string };
+  audio?: { link: string };
+  template?: {
+    name: string;
+    language: { code: string };
+    components?: Array<{
+      type: 'header' | 'body' | 'button';
+      parameters?: Array<{
+        type: 'text' | 'currency' | 'date_time' | 'image' | 'document' | 'video';
+        text?: string;
+        currency?: { fallback_value: string; code: string; amount_1000: number };
+        date_time?: { fallback_value: string };
+        image?: { link: string };
+        document?: { link: string; filename?: string };
+        video?: { link: string };
+      }>;
+    }>;
+  };
+}
 
 class EvolutionAPIService {
   private client: AxiosInstance;
   private baseURL: string;
   private apiKey: string;
+  private maxRetries: number;
+  private retryDelay: number;
 
   constructor() {
     this.baseURL = process.env.EVOLUTION_API_BASE_URL || 'http://localhost:8080';
     this.apiKey = process.env.EVOLUTION_API_KEY || '';
+    this.maxRetries = process.env.NODE_ENV === 'test' ? 0 : parseInt(process.env.EVOLUTION_API_MAX_RETRIES || '3');
+    this.retryDelay = parseInt(process.env.EVOLUTION_API_RETRY_DELAY || '1000');
     
     // Validate API configuration
     if (!this.baseURL || !this.apiKey) {
@@ -27,7 +89,7 @@ class EvolutionAPIService {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${this.apiKey}`,
-        'User-Agent': 'WhatsApp-SaaS-Worker/1.0.0',
+        'User-Agent': 'WhatsApp-SaaS-Worker/2.0.0',
         'X-Request-ID': this.generateRequestId(),
       },
       maxRedirects: 3,
@@ -36,11 +98,10 @@ class EvolutionAPIService {
 
     this.client.interceptors.request.use((config) => {
       // Add security headers
-      config.headers = {
-        ...config.headers,
-        'X-Request-ID': this.generateRequestId(),
-        'X-Request-Timestamp': new Date().toISOString(),
-      };
+      if (config.headers) {
+        config.headers['X-Request-ID'] = this.generateRequestId();
+        config.headers['X-Request-Timestamp'] = new Date().toISOString();
+      }
       
       // Validate request data
       if (config.data) {
@@ -88,7 +149,7 @@ class EvolutionAPIService {
     phone: string,
     message: string
   ): Promise<EvolutionAPIResponse> {
-    try {
+    return this.executeWithRetry(async () => {
       // Validate input parameters
       this.validateInstanceKey(instanceKey);
       this.validatePhoneNumber(phone);
@@ -109,15 +170,7 @@ class EvolutionAPIService {
         data: response.data,
         messageId: response.data?.messageId || response.data?.key?.id
       };
-    } catch (error: any) {
-      console.error('Evolution API sendTextMessage error:', error.response?.data || error.message);
-      
-      return {
-        success: false,
-        error: this.sanitizeErrorMessage(error.response?.data?.message || error.message),
-        data: error.response?.data
-      };
-    }
+    });
   }
 
   async sendMediaMessage(
@@ -127,7 +180,7 @@ class EvolutionAPIService {
     caption?: string,
     mediaType: 'image' | 'video' | 'audio' | 'document' = 'image'
   ): Promise<EvolutionAPIResponse> {
-    try {
+    return this.executeWithRetry(async () => {
       // Validate input parameters
       this.validateInstanceKey(instanceKey);
       this.validatePhoneNumber(phone);
@@ -153,15 +206,7 @@ class EvolutionAPIService {
         data: response.data,
         messageId: response.data?.messageId || response.data?.key?.id
       };
-    } catch (error: any) {
-      console.error('Evolution API sendMediaMessage error:', error.response?.data || error.message);
-      
-      return {
-        success: false,
-        error: this.sanitizeErrorMessage(error.response?.data?.message || error.message),
-        data: error.response?.data
-      };
-    }
+    });
   }
   
   private validateMediaUrl(url: string): void {
@@ -198,105 +243,209 @@ class EvolutionAPIService {
   }
 
   async getInstanceStatus(instanceKey: string): Promise<EvolutionAPIResponse> {
-    try {
+    return this.executeWithRetry(async () => {
       const response = await this.client.get(`/instance/connectionState/${instanceKey}`);
       
       return {
         success: true,
         data: response.data
       };
-    } catch (error: any) {
-      console.error('Evolution API getInstanceStatus error:', error.response?.data || error.message);
-      
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message,
-        data: error.response?.data
-      };
-    }
+    });
   }
 
-  async createInstance(instanceName: string): Promise<EvolutionAPIResponse> {
-    try {
+  // Cloud API specific methods
+  async createCloudAPIInstance(config: InstanceConfig): Promise<EvolutionAPIResponse> {
+    return this.executeWithRetry(async () => {
+      this.validateCloudAPIConfig(config);
+      
       const payload = {
-        instanceName,
+        instanceName: config.instanceName,
         token: this.apiKey,
-        qrcode: true,
-        integration: 'WHATSAPP-BAILEYS'
+        qrcode: config.qrcode || false,
+        integration: config.integration,
+        cloudApiConfig: config.cloudApiConfig,
+        webhook: config.webhookUrl,
+        webhookByEvents: config.webhookByEvents || false,
+        events: [
+          'MESSAGE_RECEIVED',
+          'MESSAGE_STATUS_UPDATE',
+          'INSTANCE_STATUS_UPDATE',
+          'QRCODE_UPDATED',
+          'CONNECTION_UPDATE'
+        ]
       };
 
       const response = await this.client.post('/instance/create', payload);
+      
+      console.log(`✅ Cloud API instance created: ${config.instanceName}`);
       
       return {
         success: true,
         data: response.data
       };
-    } catch (error: any) {
-      console.error('Evolution API createInstance error:', error.response?.data || error.message);
+    });
+  }
+
+  async sendCloudAPIMessage(
+    instanceKey: string,
+    message: CloudAPIMessage
+  ): Promise<EvolutionAPIResponse> {
+    return this.executeWithRetry(async () => {
+      this.validateInstanceKey(instanceKey);
+      this.validateCloudAPIMessage(message);
+      
+      const response = await this.client.post(
+        `/message/sendMessage/${this.sanitizeInstanceKey(instanceKey)}`,
+        message
+      );
+
+      console.log(`✅ Cloud API message sent to ${message.to}`);
       
       return {
-        success: false,
-        error: error.response?.data?.message || error.message,
-        data: error.response?.data
+        success: true,
+        data: response.data,
+        messageId: response.data?.messageId || response.data?.messages?.[0]?.id
       };
-    }
+    });
+  }
+
+  async sendCloudAPITemplate(
+    instanceKey: string,
+    phone: string,
+    template: MessageTemplate
+  ): Promise<EvolutionAPIResponse> {
+    return this.executeWithRetry(async () => {
+      this.validateInstanceKey(instanceKey);
+      this.validatePhoneNumber(phone);
+      this.validateMessageTemplate(template);
+      
+      const message: CloudAPIMessage = {
+        messaging_product: 'whatsapp',
+        to: this.formatPhoneNumber(phone),
+        type: 'template',
+        template: {
+          name: template.name,
+          language: { code: template.language },
+          components: template.parameters ? [{
+            type: 'body',
+            parameters: template.parameters
+          }] : undefined
+        }
+      };
+
+      return this.sendCloudAPIMessage(instanceKey, message);
+    });
+  }
+
+  async getCloudAPIInstanceStatus(instanceKey: string): Promise<EvolutionAPIResponse> {
+    return this.executeWithRetry(async () => {
+      this.validateInstanceKey(instanceKey);
+      
+      const response = await this.client.get(`/instance/status/${instanceKey}`);
+      
+      return {
+        success: true,
+        data: {
+          ...response.data,
+          isCloudAPI: response.data?.integration === 'WHATSAPP-CLOUD-API'
+        }
+      };
+    });
+  }
+
+  async updateCloudAPIWebhook(
+    instanceKey: string,
+    webhookUrl: string,
+    events?: string[]
+  ): Promise<EvolutionAPIResponse> {
+    return this.executeWithRetry(async () => {
+      this.validateInstanceKey(instanceKey);
+      this.validateWebhookUrl(webhookUrl);
+      
+      const payload = {
+        webhook: webhookUrl,
+        webhookByEvents: true,
+        events: events || [
+          'MESSAGE_RECEIVED',
+          'MESSAGE_STATUS_UPDATE',
+          'INSTANCE_STATUS_UPDATE'
+        ]
+      };
+
+      const response = await this.client.put(`/webhook/set/${instanceKey}`, payload);
+      
+      return {
+        success: true,
+        data: response.data
+      };
+    });
+  }
+
+  // Legacy Baileys methods (backwards compatibility)
+  async createInstance(instanceName: string): Promise<EvolutionAPIResponse> {
+    const config: InstanceConfig = {
+      instanceName,
+      instanceKey: instanceName,
+      integration: 'WHATSAPP-BAILEYS',
+      qrcode: true
+    };
+    
+    return this.createBaileysInstance(config);
+  }
+
+  async createBaileysInstance(config: InstanceConfig): Promise<EvolutionAPIResponse> {
+    return this.executeWithRetry(async () => {
+      const payload = {
+        instanceName: config.instanceName,
+        token: this.apiKey,
+        qrcode: config.qrcode || true,
+        integration: 'WHATSAPP-BAILEYS',
+        webhook: config.webhookUrl,
+        webhookByEvents: config.webhookByEvents || false
+      };
+
+      const response = await this.client.post('/instance/create', payload);
+      
+      console.log(`✅ Baileys instance created: ${config.instanceName}`);
+      
+      return {
+        success: true,
+        data: response.data
+      };
+    });
   }
 
   async deleteInstance(instanceKey: string): Promise<EvolutionAPIResponse> {
-    try {
+    return this.executeWithRetry(async () => {
       const response = await this.client.delete(`/instance/delete/${instanceKey}`);
       
       return {
         success: true,
         data: response.data
       };
-    } catch (error: any) {
-      console.error('Evolution API deleteInstance error:', error.response?.data || error.message);
-      
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message,
-        data: error.response?.data
-      };
-    }
+    });
   }
 
   async getQRCode(instanceKey: string): Promise<EvolutionAPIResponse> {
-    try {
+    return this.executeWithRetry(async () => {
       const response = await this.client.get(`/instance/connect/${instanceKey}`);
       
       return {
         success: true,
         data: response.data
       };
-    } catch (error: any) {
-      console.error('Evolution API getQRCode error:', error.response?.data || error.message);
-      
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message,
-        data: error.response?.data
-      };
-    }
+    });
   }
 
   async logout(instanceKey: string): Promise<EvolutionAPIResponse> {
-    try {
+    return this.executeWithRetry(async () => {
       const response = await this.client.delete(`/instance/logout/${instanceKey}`);
       
       return {
         success: true,
         data: response.data
       };
-    } catch (error: any) {
-      console.error('Evolution API logout error:', error.response?.data || error.message);
-      
-      return {
-        success: false,
-        error: error.response?.data?.message || error.message,
-        data: error.response?.data
-      };
-    }
+    });
   }
 
   formatPhoneNumber(phone: string): string {
@@ -464,6 +613,192 @@ class EvolutionAPIService {
       timestamp: new Date().toISOString(),
       requestId: error.config?.headers?.['X-Request-ID'],
     });
+  }
+
+  // Retry mechanism with exponential backoff
+  private async executeWithRetry<T>(
+    operation: () => Promise<T>,
+    retryCount: number = 0
+  ): Promise<T> {
+    try {
+      return await operation();
+    } catch (error: any) {
+      console.error(`Evolution API operation failed (attempt ${retryCount + 1}/${this.maxRetries + 1}):`, error.response?.data || error.message);
+      
+      if (retryCount < this.maxRetries && this.isRetryableError(error)) {
+        const delay = this.retryDelay * Math.pow(2, retryCount); // Exponential backoff
+        console.log(`⏳ Retrying in ${delay}ms...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return this.executeWithRetry(operation, retryCount + 1);
+      }
+      
+      // Return structured error response instead of throwing
+      return {
+        success: false,
+        error: this.sanitizeErrorMessage(error.response?.data?.message || error.message),
+        data: error.response?.data
+      } as T;
+    }
+  }
+
+  private isRetryableError(error: any): boolean {
+    const status = error.response?.status;
+    // Don't retry on validation errors (thrown by our own validation)
+    if (error.message && (
+      error.message.includes('is required') ||
+      error.message.includes('Invalid') ||
+      error.message.includes('must be') ||
+      error.message.includes('contains')
+    )) {
+      return false;
+    }
+    // Retry on network errors, 5xx errors, and rate limits
+    return !status || status >= 500 || status === 429 || error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT';
+  }
+
+  // Cloud API validation methods
+  private validateCloudAPIConfig(config: InstanceConfig): void {
+    if (config.integration === 'WHATSAPP-CLOUD-API') {
+      if (!config.cloudApiConfig) {
+        throw new Error('Cloud API configuration is required for WHATSAPP-CLOUD-API integration');
+      }
+      
+      const { accessToken, phoneNumberId, businessAccountId } = config.cloudApiConfig;
+      
+      if (!accessToken || typeof accessToken !== 'string') {
+        throw new Error('Cloud API access token is required');
+      }
+      
+      if (!phoneNumberId || typeof phoneNumberId !== 'string') {
+        throw new Error('Cloud API phone number ID is required');
+      }
+      
+      if (!businessAccountId || typeof businessAccountId !== 'string') {
+        throw new Error('Cloud API business account ID is required');
+      }
+      
+      // Validate access token format (should start with EAA)
+      if (!accessToken.startsWith('EAA')) {
+        console.warn('⚠️  Cloud API access token may be invalid (should start with EAA)');
+      }
+    }
+  }
+
+  private validateCloudAPIMessage(message: CloudAPIMessage): void {
+    if (!message.messaging_product || message.messaging_product !== 'whatsapp') {
+      throw new Error('messaging_product must be "whatsapp"');
+    }
+    
+    if (!message.to || typeof message.to !== 'string') {
+      throw new Error('Recipient phone number is required');
+    }
+    
+    if (!message.type || !['text', 'image', 'document', 'video', 'audio', 'template'].includes(message.type)) {
+      throw new Error('Invalid message type');
+    }
+    
+    // Validate message content based on type
+    switch (message.type) {
+      case 'text':
+        if (!message.text?.body) {
+          throw new Error('Text message body is required');
+        }
+        break;
+      case 'template':
+        if (!message.template?.name || !message.template?.language?.code) {
+          throw new Error('Template name and language are required');
+        }
+        break;
+      case 'image':
+      case 'document':
+      case 'video':
+      case 'audio':
+        const mediaField = message[message.type];
+        if (!mediaField?.link) {
+          throw new Error(`${message.type} link is required`);
+        }
+        this.validateMediaUrl(mediaField.link);
+        break;
+    }
+  }
+
+  private validateMessageTemplate(template: MessageTemplate): void {
+    if (!template.name || typeof template.name !== 'string') {
+      throw new Error('Template name is required');
+    }
+    
+    if (!template.language || typeof template.language !== 'string') {
+      throw new Error('Template language is required');
+    }
+    
+    // Validate template name format
+    if (!/^[a-z0-9_]+$/.test(template.name)) {
+      throw new Error('Template name must contain only lowercase letters, numbers, and underscores');
+    }
+    
+    // Validate language code format (e.g., en_US, pt_BR)
+    if (!/^[a-z]{2}(_[A-Z]{2})?$/.test(template.language)) {
+      throw new Error('Template language must be in format: en_US, pt_BR, etc.');
+    }
+  }
+
+  private validateWebhookUrl(url: string): void {
+    if (!url || typeof url !== 'string') {
+      throw new Error('Webhook URL is required');
+    }
+    
+    try {
+      const urlObj = new URL(url);
+      
+      // Only allow HTTPS URLs for security
+      if (urlObj.protocol !== 'https:') {
+        throw new Error('Webhook URL must use HTTPS');
+      }
+      
+    } catch (error) {
+      throw new Error('Invalid webhook URL format');
+    }
+  }
+
+  // Utility methods for integration detection
+  async detectInstanceIntegration(instanceKey: string): Promise<'WHATSAPP-BAILEYS' | 'WHATSAPP-CLOUD-API' | null> {
+    try {
+      const status = await this.getInstanceStatus(instanceKey);
+      if (status.success && status.data?.integration) {
+        return status.data.integration;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error detecting instance integration:', error);
+      return null;
+    }
+  }
+
+  // Smart message sending that detects integration type
+  async sendMessage(
+    instanceKey: string,
+    phone: string,
+    message: string,
+    integration?: 'WHATSAPP-BAILEYS' | 'WHATSAPP-CLOUD-API'
+  ): Promise<EvolutionAPIResponse> {
+    // Auto-detect integration if not provided
+    if (!integration) {
+      integration = await this.detectInstanceIntegration(instanceKey) || 'WHATSAPP-BAILEYS';
+    }
+    
+    if (integration === 'WHATSAPP-CLOUD-API') {
+      const cloudMessage: CloudAPIMessage = {
+        messaging_product: 'whatsapp',
+        to: this.formatPhoneNumber(phone),
+        type: 'text',
+        text: { body: this.sanitizeMessage(message) }
+      };
+      
+      return this.sendCloudAPIMessage(instanceKey, cloudMessage);
+    } else {
+      return this.sendTextMessage(instanceKey, phone, message);
+    }
   }
 }
 

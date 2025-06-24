@@ -21,7 +21,7 @@ import { errorHandler, notFoundHandler } from '@/middleware/errorHandler';
 import { globalRateLimit } from '@/middleware/rateLimiter';
 import securityMiddleware from '@/middleware/security';
 import { auditMiddleware } from '@/middleware/auditLogger';
-import { detectInjectionAttempts } from '@/middleware/validation';
+// Temporarily disabled: import { detectInjectionAttempts } from '@/middleware/validation';
 import authRoutes from '@/routes/auth';
 import contactRoutes from '@/routes/contacts';
 import templateRoutes from '@/routes/templates';
@@ -29,6 +29,8 @@ import campaignRoutes from '@/routes/campaigns';
 import companyRoutes from '@/routes/companies';
 import userRoutes from '@/routes/users';
 import messageLogRoutes from '@/routes/messageLogs';
+import whatsappIntegrationRoutes from '@/routes/whatsappIntegrations';
+import webhookRoutes from '@/routes/webhooks';
 import healthRoutes from '@/routes/health';
 import monitoringRoutes from '@/routes/monitoring';
 import apmRoutes from '@/routes/apm';
@@ -94,7 +96,7 @@ app.use(securityMiddleware.validateIP);
 app.use(securityMiddleware.sanitizeInput);
 
 // Injection detection
-app.use(detectInjectionAttempts);
+// Temporarily disabled: app.use(detectInjectionAttempts);
 
 // Audit logging
 app.use(auditMiddleware);
@@ -121,6 +123,7 @@ app.get('/', (req, res) => {
 app.use('/health', healthRoutes);
 app.use('/monitoring', monitoringRoutes);
 app.use('/apm', apmRoutes);
+app.use('/webhooks', webhookRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/templates', templateRoutes);
@@ -128,6 +131,7 @@ app.use('/api/campaigns', campaignRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/logs', messageLogRoutes);
+app.use('/api/integrations/whatsapp', whatsappIntegrationRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

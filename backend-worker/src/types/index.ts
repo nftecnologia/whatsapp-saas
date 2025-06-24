@@ -35,11 +35,19 @@ export interface WhatsAppIntegration {
   company_id: string;
   instance_name: string;
   instance_key: string;
+  integration_type: 'WHATSAPP-BAILEYS' | 'WHATSAPP-CLOUD-API';
   qr_code?: string;
   status: 'disconnected' | 'connecting' | 'connected' | 'error';
   phone_number?: string;
   profile_name?: string;
   evolution_api_data?: Record<string, any>;
+  cloud_api_config?: {
+    access_token: string;
+    phone_number_id: string;
+    business_account_id: string;
+    webhook_verify_token?: string;
+  };
+  webhook_url?: string;
   is_active: boolean;
   created_at: Date;
   updated_at: Date;

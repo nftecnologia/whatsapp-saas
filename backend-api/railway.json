@@ -5,10 +5,32 @@
     "dockerfilePath": "Dockerfile"
   },
   "deploy": {
-    "numReplicas": 1,
+    "numReplicas": 2,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/health",
-    "healthcheckTimeout": 100
+    "healthcheckTimeout": 30
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "NODE_ENV": "production",
+        "PORT": "3000",
+        "DATABASE_URL": "${{Postgres.DATABASE_URL}}",
+        "REDIS_URL": "${{Redis.REDIS_URL}}",
+        "RABBITMQ_URL": "${{CLOUDAMQP_URL}}",
+        "EVOLUTION_API_BASE_URL": "http://${{evolution-api.RAILWAY_PRIVATE_DOMAIN}}:8080",
+        "EVOLUTION_API_KEY": "whatsapp_saas_evolution_prod_key_2024",
+        "JWT_SECRET": "${{JWT_SECRET}}",
+        "STACK_AUTH_PROJECT_ID": "36ac5c46-cfff-4dea-9142-bfe2aecf37db",
+        "STACK_AUTH_PUBLISHABLE_KEY": "pck_y7r6v2pm3pnefvc834agzv9y98dfqr73q7azbrrs4q6r8",
+        "STACK_AUTH_SECRET_KEY": "ssk_7p2j367p86b4q3qa3z56111q1zf305585epzmrkqsf940",
+        "ENCRYPTION_KEY": "${{ENCRYPTION_KEY}}",
+        "WEBHOOK_BASE_URL": "https://${{RAILWAY_PUBLIC_DOMAIN}}",
+        "CORS_ORIGIN": "https://${{frontend.RAILWAY_PUBLIC_DOMAIN}}",
+        "RATE_LIMIT_WINDOW": "900000",
+        "RATE_LIMIT_MAX": "100"
+      }
+    }
   }
 }

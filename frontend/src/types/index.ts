@@ -84,6 +84,61 @@ export interface MessageLog {
   campaign_name?: string;
 }
 
+export interface WhatsAppIntegration {
+  id: string;
+  company_id: string;
+  instance_name: string;
+  instance_key: string;
+  qr_code?: string;
+  status: 'disconnected' | 'connecting' | 'connected' | 'error';
+  phone_number?: string;
+  profile_name?: string;
+  evolution_api_data?: Record<string, any>;
+  is_active: boolean;
+  // Enhanced fields for Meta integration
+  meta_token?: string;
+  meta_app_id?: string;
+  meta_phone_number_id?: string;
+  webhook_verify_token?: string;
+  connection_health?: 'excellent' | 'good' | 'poor' | 'failed';
+  last_health_check?: string;
+  api_rate_limit?: {
+    remaining: number;
+    reset_time: string;
+  };
+  setup_completed?: boolean;
+  validation_errors?: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IntegrationSetupStep {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'error';
+  required: boolean;
+  validation_errors?: string[];
+}
+
+export interface IntegrationTestResult {
+  test_name: string;
+  status: 'passed' | 'failed' | 'warning';
+  message: string;
+  details?: Record<string, any>;
+}
+
+export interface BulkIntegrationOperation {
+  operation: 'connect' | 'disconnect' | 'refresh' | 'test' | 'delete';
+  integration_ids: string[];
+  status: 'pending' | 'in_progress' | 'completed' | 'failed';
+  results?: Array<{
+    integration_id: string;
+    success: boolean;
+    message: string;
+  }>;
+}
+
 export interface AuthData {
   user: User;
   token: string;

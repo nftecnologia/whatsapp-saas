@@ -35,7 +35,7 @@ check_service() {
     echo -n "Checking $service_name... "
     
     # Check if container is running
-    if ! docker-compose ps | grep -q "$service_name.*Up"; then
+    if ! docker compose ps | grep -q "$service_name.*Up"; then
         echo -e "${RED}❌ Container not running${NC}"
         return 1
     fi
@@ -59,7 +59,7 @@ check_service() {
 # Function to check database connectivity
 check_database() {
     echo -n "Checking PostgreSQL... "
-    if docker-compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
+    if docker compose exec -T postgres pg_isready -U postgres > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Connected${NC}"
         return 0
     else
@@ -71,7 +71,7 @@ check_database() {
 # Function to check Redis connectivity
 check_redis() {
     echo -n "Checking Redis... "
-    if docker-compose exec -T redis redis-cli ping > /dev/null 2>&1; then
+    if docker compose exec -T redis redis-cli ping > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Connected${NC}"
         return 0
     else
@@ -83,7 +83,7 @@ check_redis() {
 # Function to check RabbitMQ connectivity
 check_rabbitmq() {
     echo -n "Checking RabbitMQ... "
-    if docker-compose exec -T rabbitmq rabbitmq-diagnostics -q ping > /dev/null 2>&1; then
+    if docker compose exec -T rabbitmq rabbitmq-diagnostics -q ping > /dev/null 2>&1; then
         echo -e "${GREEN}✅ Connected${NC}"
         return 0
     else
@@ -108,7 +108,7 @@ check_service "frontend" "" "8080" || health_status=1
 
 echo ""
 echo "📈 Service Status Overview:"
-docker-compose ps
+docker compose ps
 
 if [ $health_status -eq 0 ]; then
     echo ""
@@ -122,7 +122,7 @@ if [ $health_status -eq 0 ]; then
 else
     echo ""
     echo -e "${RED}⚠️  Some services are unhealthy. Check the logs:${NC}"
-    echo "  docker-compose logs [service-name]"
+    echo "  docker compose logs [service-name]"
     echo ""
 fi
 

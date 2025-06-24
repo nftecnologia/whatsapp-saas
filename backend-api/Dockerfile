@@ -31,12 +31,19 @@ RUN apk add --no-cache curl
 
 # Copy package files
 COPY package*.json ./
+COPY tsconfig.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production && npm cache clean --force
+# Install all dependencies first (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
+
+# Build TypeScript
+RUN npm run build
+
+# Now remove dev dependencies and clean up
+RUN npm ci --only=production && npm cache clean --force
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs

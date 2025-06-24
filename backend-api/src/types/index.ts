@@ -146,3 +146,107 @@ export interface AuthUser {
   company_id: string;
   role: string;
 }
+
+// Enhanced webhook types for Evolution API integration
+export interface EvolutionWebhookPayload {
+  instance: string;
+  data: {
+    key?: {
+      remoteJid: string;
+      fromMe: boolean;
+      id: string;
+    };
+    messageTimestamp?: number;
+    status?: 'ERROR' | 'PENDING' | 'SERVER_ACK' | 'DELIVERY_ACK' | 'READ' | 'PLAYED';
+    participant?: string;
+    messageType?: string;
+    message?: any;
+    // Instance status data
+    instance?: {
+      instanceName: string;
+      state: 'open' | 'close' | 'connecting' | 'qr' | 'browserClose';
+      connectionStatus?: string;
+    };
+    qrcode?: {
+      code: string;
+      base64: string;
+    };
+    connection?: {
+      state: string;
+      statusReason?: number;
+    };
+  };
+  destination: string;
+  date_time: string;
+  sender: string;
+  server_url: string;
+  apikey: string;
+  webhook: string;
+  events: string[];
+}
+
+// Instance status change event
+export interface InstanceStatusChangeEvent {
+  instanceId: string;
+  instanceName: string;
+  companyId: string;
+  oldStatus: 'connected' | 'disconnected' | 'error' | 'connecting';
+  newStatus: 'connected' | 'disconnected' | 'error' | 'connecting';
+  timestamp: Date;
+  metadata?: {
+    qrCode?: string;
+    phoneNumber?: string;
+    profileName?: string;
+    connectionDetails?: Record<string, any>;
+  };
+  source: 'webhook' | 'system' | 'manual';
+}
+
+// Webhook retry configuration
+export interface WebhookRetryConfig {
+  maxRetries: number;
+  baseDelayMs: number;
+  maxDelayMs: number;
+  backoffMultiplier: number;
+  retryableEvents: string[];
+}
+
+// Webhook failure log
+export interface WebhookFailureLog {
+  id: string;
+  webhook_url: string;
+  payload: Record<string, any>;
+  instance_name: string;
+  company_id: string;
+  failure_reason: string;
+  retry_count: number;
+  next_retry_at?: Date;
+  status: 'pending' | 'retrying' | 'failed' | 'resolved';
+  created_at: Date;
+  updated_at: Date;
+}
+
+// Instance audit log
+export interface InstanceAuditLog {
+  id: string;
+  instance_id: string;
+  company_id: string;
+  event_type: 'status_change' | 'webhook_received' | 'connection_update' | 'error_occurred';
+  old_data?: Record<string, any>;
+  new_data?: Record<string, any>;
+  metadata?: Record<string, any>;
+  source: 'webhook' | 'system' | 'manual' | 'user';
+  source_ip?: string;
+  user_id?: string;
+  created_at: Date;
+}
+
+// Real-time update event for frontend
+export interface RealTimeUpdateEvent {
+  type: 'instance_status' | 'message_status' | 'webhook_failure' | 'system_alert';
+  companyId: string;
+  instanceId?: string;
+  data: Record<string, any>;
+  timestamp: Date;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+}

@@ -426,5 +426,6 @@ class WorkerSecurityLogger {
 
 // Export singleton instance
 export const workerSecurityLogger = WorkerSecurityLogger.getInstance();
-export { SecurityLogLevel };
+// Temporarily commented to fix duplicate export error
+// export { SecurityLogLevel };
 export default workerSecurityLogger;

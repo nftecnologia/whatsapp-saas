@@ -11,6 +11,8 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "db:migrate": "tsx src/database/migrate.ts",
+    "db:migrate:run": "tsx src/database/migrationRunner.ts",
+    "db:migrate:single": "tsx src/database/migrationRunner.ts single",
     "db:seed": "tsx src/database/seed.ts"
   },
   "dependencies": {

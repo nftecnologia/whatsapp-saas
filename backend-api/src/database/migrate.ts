@@ -1,18 +1,24 @@
 import fs from 'fs';
 import path from 'path';
 import pool from '@/config/database';
+import { runMigrations } from './migrationRunner';
 
 const runMigration = async () => {
   try {
-    console.log('🔄 Starting database migration...');
+    console.log('🔄 Starting database setup...');
     
+    // First, run the main schema (for initial setup)
     const schemaPath = path.join(__dirname, 'schema.sql');
     const schema = fs.readFileSync(schemaPath, 'utf8');
     
     await pool.query(schema);
     
-    console.log('✅ Database migration completed successfully!');
+    console.log('✅ Base schema setup completed!');
     
+    // Then run any pending migrations
+    await runMigrations();
+    
+    // Show final table list
     const result = await pool.query(`
       SELECT table_name 
       FROM information_schema.tables 
@@ -20,7 +26,7 @@ const runMigration = async () => {
       ORDER BY table_name
     `);
     
-    console.log('📋 Created tables:');
+    console.log('📋 Final database tables:');
     result.rows.forEach(row => {
       console.log(`  - ${row.table_name}`);
     });

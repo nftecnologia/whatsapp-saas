@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import apmService from '@/services/apmService';
-import { auth } from '@/middleware/auth';
+import { authenticateToken } from '@/middleware/auth';
 import logger from '@/utils/logger';
 
 const router = Router();
@@ -10,7 +10,7 @@ const router = Router();
  * @desc Get APM service status and overview
  * @access Private (Admin)
  */
-router.get('/status', auth, async (req, res) => {
+router.get('/status', authenticateToken, async (req, res) => {
   try {
     const status = apmService.getAPMStatus();
     
@@ -37,7 +37,7 @@ router.get('/status', auth, async (req, res) => {
  * @desc Get transaction summaries with performance metrics
  * @access Private (Admin)
  */
-router.get('/transactions', auth, async (req, res) => {
+router.get('/transactions', authenticateToken, async (req, res) => {
   try {
     const summaries = apmService.getTransactionSummaries();
     
@@ -80,7 +80,7 @@ router.get('/transactions', auth, async (req, res) => {
  * @desc Get recent traces for analysis
  * @access Private (Admin)
  */
-router.get('/traces', auth, async (req, res) => {
+router.get('/traces', authenticateToken, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 100;
     const traces = apmService.exportTraces(limit);
@@ -136,7 +136,7 @@ router.get('/traces', auth, async (req, res) => {
  * @desc Get performance metrics
  * @access Private (Admin)
  */
-router.get('/metrics', auth, async (req, res) => {
+router.get('/metrics', authenticateToken, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit as string) || 1000;
     const metrics = apmService.exportMetrics(limit);
@@ -196,7 +196,7 @@ router.get('/metrics', auth, async (req, res) => {
  * @desc Get error analysis from traces
  * @access Private (Admin)
  */
-router.get('/errors', auth, async (req, res) => {
+router.get('/errors', authenticateToken, async (req, res) => {
   try {
     const traces = apmService.exportTraces();
     const errorTraces = traces.filter(t => t.status === 'error');
@@ -267,7 +267,7 @@ router.get('/errors', auth, async (req, res) => {
  * @desc Get performance analysis and insights
  * @access Private (Admin)
  */
-router.get('/performance', auth, async (req, res) => {
+router.get('/performance', authenticateToken, async (req, res) => {
   try {
     const status = apmService.getAPMStatus();
     const traces = apmService.exportTraces();
@@ -316,7 +316,7 @@ router.get('/performance', auth, async (req, res) => {
  * @desc Control APM service (enable/disable/clear)
  * @access Private (Admin)
  */
-router.post('/control', auth, async (req, res) => {
+router.post('/control', authenticateToken, async (req, res) => {
   try {
     const { action } = req.body;
     

@@ -2,6 +2,21 @@
 
 Este guia explica como fazer o deploy da plataforma WhatsApp SaaS nos principais provedores de cloud.
 
+## ⚡ Quick Start (Deploy em 15 minutos)
+
+### Para Teste Rápido:
+1. **Fork este repositório** no GitHub
+2. **Deploy no Railway**: Clique em [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new/template/your-template)
+3. **Deploy no Vercel**: Conecte o repositório no Vercel
+4. **Configure variáveis** de ambiente (ver seção abaixo)
+5. **Acesse e teste!** 🎉
+
+### Resultado Esperado:
+- **Frontend**: `https://your-app.vercel.app`
+- **API**: `https://backend-api-production-xxxx.up.railway.app`
+- **Worker**: Processando mensagens automaticamente
+- **Login de Teste**: `admin@teste.com` / `teste123`
+
 ## 🏗️ Arquitetura de Deployment
 
 - **Frontend**: Vercel (React + Vite)

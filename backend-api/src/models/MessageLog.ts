@@ -80,6 +80,14 @@ export class MessageLogModel {
     return result.rows[0] || null;
   }
 
+  static async findByWhatsAppMessageId(whatsappMessageId: string): Promise<MessageLog | null> {
+    const result = await pool.query(
+      'SELECT * FROM message_logs WHERE whatsapp_message_id = $1',
+      [whatsappMessageId]
+    );
+    return result.rows[0] || null;
+  }
+
   static async findByCampaign(
     campaignId: string,
     filters: {

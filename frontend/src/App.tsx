@@ -10,6 +10,7 @@ import Templates from './pages/Templates';
 import Campaigns from './pages/Campaigns';
 import MessageDispatch from './pages/MessageDispatch';
 import MessageLogs from './pages/MessageLogs';
+import WhatsAppIntegrations from './pages/WhatsAppIntegrations';
 
 function App() {
   const { loadUser } = useAuthStore();
@@ -35,6 +36,7 @@ function App() {
         <Route path="campaigns" element={<Campaigns />} />
         <Route path="dispatch" element={<MessageDispatch />} />
         <Route path="logs" element={<MessageLogs />} />
+        <Route path="integrations" element={<WhatsAppIntegrations />} />
         <Route path="settings" element={<div>Configurações em desenvolvimento...</div>} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

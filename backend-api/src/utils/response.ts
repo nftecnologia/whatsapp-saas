@@ -47,3 +47,17 @@ export const sendPaginatedResponse = <T>(
     },
   });
 };
+
+export const createResponse = <T>(
+  success: boolean,
+  data?: T,
+  message: string = '',
+  error?: string
+): ApiResponse<T> => {
+  return {
+    success,
+    data,
+    message,
+    ...(error && { error }),
+  };
+};

@@ -23,7 +23,7 @@ jest.mock('@/config/rabbitmq', () => ({
   close: jest.fn(),
 }));
 
-// Mock Stack Auth
+// Mock Stack Auth (if present)
 jest.mock('@stack-auth/node', () => ({
   stackAuth: {
     getUser: jest.fn(),
@@ -31,7 +31,7 @@ jest.mock('@stack-auth/node', () => ({
     updateUser: jest.fn(),
     deleteUser: jest.fn(),
   },
-}));
+}), { virtual: true });
 
 // Global test configuration
 beforeAll(async () => {

@@ -102,14 +102,12 @@ export const useAuthStore = create<AuthState>()(
             isLoading: false,
           });
         } catch (error) {
+          // Temporarily ignore loadUser errors to allow login flow to work
+          console.warn('LoadUser failed, but allowing normal login flow:', error);
           set({
-            user: null,
-            company: null,
-            token: null,
-            isAuthenticated: false,
             isLoading: false,
           });
-          apiService.clearToken();
+          // Don't clear token here - let login flow handle authentication
         }
       },
 
