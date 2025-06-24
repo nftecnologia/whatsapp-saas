@@ -23,7 +23,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6381:6379"
+      - "6382:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -106,8 +106,6 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      evolution-api:
-        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -165,15 +163,13 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-      evolution-api:
-        condition: service_healthy
     restart: unless-stopped
     deploy:
       replicas: 2
 
   # Evolution API v2 - WhatsApp Cloud API Integration
   evolution-api:
-    image: atendai/evolution-api:v2
+    image: atendai/evolution-api:latest
     container_name: evolution_api_v2
     ports:
       - "8080:8080"
@@ -182,7 +178,8 @@ services:
       AUTHENTICATION_API_KEY: whatsapp_saas_evolution_cloud_api_key_2024
       # Database
       DATABASE_ENABLED: true
-      DATABASE_CONNECTION_URI: postgresql://postgres:postgres@postgres:5432/whatsapp_saas
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://postgres:postgres@postgres:5432/whatsapp_evolution
       DATABASE_CONNECTION_CLIENT_NAME: evolution_api
       # Redis
       REDIS_ENABLED: true
@@ -234,8 +231,6 @@ services:
       VITE_EVOLUTION_API_URL: http://localhost:8080
     depends_on:
       backend-api:
-        condition: service_healthy
-      evolution-api:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5173"]

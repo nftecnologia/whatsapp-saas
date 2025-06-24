@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "railway": {
+      "command": "npx",
+      "args": ["@railway/cli@latest"],
+      "env": {
+        "RAILWAY_PROJECT_PATH": "/Users/oliveira/Desktop/apiwhatsapp"
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+[phases.build]
+cmd = "echo 'Using Dockerfile instead of nixpacks'"
+
+[phases.install]
+cmd = "echo 'Using Dockerfile instead of nixpacks'"
+
+[start]
+cmd = "echo 'Using Dockerfile instead of nixpacks'"
