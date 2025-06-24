@@ -1,55 +1,18 @@
-# Dependencies
 node_modules
-npm-debug.log*
-
-# Build output
 dist
-build
-
-# Environment files
-.env*
-!.env.example
-
-# IDE files
-.vscode
-.idea
-*.swp
-*.swo
-
-# OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Git
+coverage
+test
+*.test.js
+*.test.ts
 .git
 .gitignore
-
-# Testing
-test-results
-playwright-report
-tests
-*.test.ts
-*.test.js
-*.test.tsx
-
-# Documentation
+README.md
 docs
-*.md
-!README.md
-
-# Logs
 logs
 *.log
-
-# Development files
-src/test
-coverage
-
-# Runtime data
-tmp
-temp
+.env.example
+.env.local
+.env.development
+.env.test
+playwright-report
+test-results
