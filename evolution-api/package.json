@@ -1,0 +1,13 @@
+{
+  "name": "evolution-api-railway",
+  "version": "1.0.0",
+  "description": "Evolution API deployment for Railway",
+  "main": "index.js",
+  "scripts": {
+    "start": "echo 'Evolution API container starting'",
+    "build": "echo 'Using Docker image, no build needed'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
