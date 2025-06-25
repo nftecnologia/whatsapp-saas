@@ -170,13 +170,12 @@ function sanitizeString(str: string): string {
   let sanitized = purify.sanitize(str, { 
     ALLOWED_TAGS: [],
     ALLOWED_ATTR: [],
-    FORBID_SCRIPT: true,
     FORBID_TAGS: ['script', 'object', 'embed', 'iframe', 'form', 'input'],
     FORBID_ATTR: ['onerror', 'onclick', 'onload', 'onmouseover'],
   });
   
   // Additional security layers
-  sanitized = sanitized
+  sanitized = String(sanitized)
     .replace(/javascript:/gi, '')
     .replace(/vbscript:/gi, '')
     .replace(/data:/gi, '')

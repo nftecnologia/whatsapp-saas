@@ -111,7 +111,7 @@ export class CampaignModel {
       'DELETE FROM campaigns WHERE id = $1 AND company_id = $2',
       [id, companyId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   static async addContacts(campaignId: string, contactIds: string[]): Promise<CampaignContact[]> {
@@ -175,7 +175,7 @@ export class CampaignModel {
       );
       
       await client.query('COMMIT');
-      return result.rowCount > 0;
+      return (result.rowCount || 0) > 0;
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

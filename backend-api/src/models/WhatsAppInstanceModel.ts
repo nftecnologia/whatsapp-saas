@@ -345,7 +345,7 @@ export class WhatsAppInstanceModel {
         [id, companyId]
       );
 
-      const deleted = result.rowCount > 0;
+      const deleted = (result.rowCount || 0) > 0;
 
       if (deleted) {
         logger.info('WhatsApp instance deleted successfully', {
@@ -375,7 +375,7 @@ export class WhatsAppInstanceModel {
         [status, id, companyId]
       );
 
-      const updated = result.rowCount > 0;
+      const updated = (result.rowCount || 0) > 0;
 
       if (updated) {
         logger.info('WhatsApp instance status updated', {

@@ -282,7 +282,7 @@ class MonitoringService extends EventEmitter {
     });
 
     // Record metrics
-    metricsService.recordError('monitoring', 'alert', rule.severity);
+    metricsService.recordError('business', 'alert', rule.severity);
   }
 
   private async resolveAlert(ruleId: string): Promise<void> {

@@ -72,7 +72,7 @@ export class CompanyModel {
       'UPDATE companies SET is_active = false WHERE id = $1',
       [id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   static async getStats(): Promise<{

@@ -206,12 +206,11 @@ function sanitizeString(str: string): string {
   let sanitized = purify.sanitize(str, { 
     ALLOWED_TAGS: [],
     ALLOWED_ATTR: [],
-    FORBID_SCRIPT: true,
     FORBID_TAGS: ['script', 'object', 'embed', 'iframe'],
   });
   
   // Additional security measures
-  sanitized = sanitized
+  sanitized = String(sanitized)
     .replace(/javascript:/gi, '')
     .replace(/vbscript:/gi, '')
     .replace(/data:/gi, '')
@@ -366,7 +365,7 @@ export const createAdvancedRateLimit = (options: {
   return rateLimit({
     windowMs: options.windowMs,
     max: options.max,
-    keyGenerator: options.keyGenerator || ((req) => req.ip),
+    keyGenerator: options.keyGenerator || ((req) => req.ip || 'anonymous'),
     skip: options.skipIf || (() => false),
     standardHeaders: true,
     legacyHeaders: false,

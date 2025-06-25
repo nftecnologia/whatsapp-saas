@@ -105,7 +105,7 @@ class CacheService {
       const serialized = JSON.stringify(value);
       
       if (ttl > 0) {
-        await redis.setex(fullKey, ttl, serialized);
+        await redis.setEx(fullKey, ttl, serialized);
       } else {
         await redis.set(fullKey, serialized);
       }
@@ -159,9 +159,9 @@ class CacheService {
     const fullKeys = keys.map(key => this.buildKey(key, options.namespace));
     
     return this.executeWithLogging('MGET', fullKeys.join(','), async () => {
-      const values = await redis.mget(...fullKeys);
+      const values = await redis.mGet(fullKeys);
       
-      return values.map((value, index) => {
+      return values.map((value: string | null, index: number) => {
         if (value === null) {
           this.stats.misses++;
           return null;
@@ -180,7 +180,7 @@ class CacheService {
   }
 
   async mset(data: Record<string, any>, options: CacheOptions = {}): Promise<void> {
-    const pipeline = redis.pipeline();
+    const pipeline = redis.multi();
     const ttl = options.ttl || this.defaultTTL;
     
     for (const [key, value] of Object.entries(data)) {
@@ -188,7 +188,7 @@ class CacheService {
       const serialized = JSON.stringify(value);
       
       if (ttl > 0) {
-        pipeline.setex(fullKey, ttl, serialized);
+        pipeline.setEx(fullKey, ttl, serialized);
       } else {
         pipeline.set(fullKey, serialized);
       }
@@ -200,11 +200,11 @@ class CacheService {
 
   // Tag-based cache invalidation
   private async addToTags(key: string, tags: string[], namespace?: string): Promise<void> {
-    const pipeline = redis.pipeline();
+    const pipeline = redis.multi();
     
     for (const tag of tags) {
       const tagKey = this.buildKey(`tag:${tag}`, namespace);
-      pipeline.sadd(tagKey, key);
+      pipeline.sAdd(tagKey, key);
       pipeline.expire(tagKey, this.defaultTTL * 2); // Tags live longer than data
     }
     
@@ -215,13 +215,13 @@ class CacheService {
     const tagKey = this.buildKey(`tag:${tag}`, options.namespace);
     
     return this.executeWithLogging('INVALIDATE_TAG', tagKey, async () => {
-      const keys = await redis.smembers(tagKey);
+      const keys = await redis.sMembers(tagKey);
       
       if (keys.length === 0) {
         return 0;
       }
       
-      const pipeline = redis.pipeline();
+      const pipeline = redis.multi();
       
       // Delete all keys associated with the tag
       for (const key of keys) {
@@ -249,7 +249,7 @@ class CacheService {
         return 0;
       }
       
-      await redis.del(...keys);
+      await redis.del(keys);
       this.stats.deletes += keys.length;
       
       return keys.length;

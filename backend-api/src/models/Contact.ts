@@ -108,7 +108,7 @@ export class ContactModel {
       'UPDATE contacts SET is_active = false WHERE id = $1 AND company_id = $2',
       [id, companyId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount || 0) > 0;
   }
 
   static async bulkCreate(

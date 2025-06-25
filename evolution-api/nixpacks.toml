@@ -1,0 +1,11 @@
+[variables]
+NIXPACKS_PLAN = "docker"
+
+[phases.install]
+cmd = "echo 'Using Docker strategy for Evolution API'"
+
+[phases.build]
+cmd = "echo 'Docker build handled by Railway'"
+
+[phases.start]
+cmd = "echo 'Starting Evolution API container'"

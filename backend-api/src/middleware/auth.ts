@@ -106,7 +106,7 @@ export const requireCompanyAccess = () => {
 
     const resourceCompanyId = req.params.companyId || req.body.company_id || req.query.company_id;
     
-    if (resourceCompanyId && resourceCompanyId !== req.user.company_id && req.user.role !== 'super_admin') {
+    if (resourceCompanyId && resourceCompanyId !== req.user.company_id && req.user.role !== 'admin') {
       audit.logSecurityEvent(req, AuditEventType.PERMISSION_DENIED, {
         reason: 'Attempted access to different company data',
         userCompanyId: req.user.company_id,
@@ -138,7 +138,7 @@ export const requireResourceOwnership = (resourceType: string) => {
     }
 
     // Skip ownership check for admins
-    if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+    if (req.user.role === 'admin') {
       return next();
     }
 
@@ -172,7 +172,7 @@ export const blacklistToken = async (token: string): Promise<void> => {
   if (decoded && decoded.exp) {
     const ttl = decoded.exp - Math.floor(Date.now() / 1000);
     if (ttl > 0) {
-      await redis.setex(`blacklist:${tokenHash}`, ttl, '1');
+      await redis.setEx(`blacklist:${tokenHash}`, ttl, '1');
     }
   }
 };
@@ -217,7 +217,7 @@ async function trackTokenUsage(token: string, userId: string, ip: string): Promi
     }
   }
   
-  await redis.setex(key, 3600, JSON.stringify(usage)); // Store for 1 hour
+  await redis.setEx(key, 3600, JSON.stringify(usage)); // Store for 1 hour
 }
 
 // Hash token for secure storage and logging
@@ -257,7 +257,7 @@ export const sessionTimeout = (timeoutMinutes: number = 30) => {
     }
     
     // Update last activity
-    await redis.setex(sessionKey, timeoutMinutes * 60, new Date().toISOString());
+    await redis.setEx(sessionKey, timeoutMinutes * 60, new Date().toISOString());
     next();
   };
 };

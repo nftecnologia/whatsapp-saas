@@ -45,8 +45,9 @@ router.get('/transactions', authenticateToken, async (req, res) => {
     const totalTransactions = summaries.reduce((sum, t) => sum + t.count, 0);
     const avgErrorRate = summaries.length > 0 ? 
       summaries.reduce((sum, t) => sum + t.errorRate, 0) / summaries.length : 0;
-    const slowestTransaction = summaries.reduce((slowest, current) => 
-      current.avgDuration > (slowest?.avgDuration || 0) ? current : slowest, null);
+    const slowestTransaction = summaries.length > 0 ? 
+      summaries.reduce((slowest, current) => 
+        current.avgDuration > slowest.avgDuration ? current : slowest) : null;
     
     res.json({
       success: true,

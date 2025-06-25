@@ -51,6 +51,7 @@ export interface Campaign {
   name: string;
   template_id: string;
   status: 'draft' | 'scheduled' | 'running' | 'completed' | 'paused' | 'cancelled';
+  type?: 'broadcast' | 'individual' | 'automated';
   scheduled_at?: Date;
   started_at?: Date;
   completed_at?: Date;
@@ -144,7 +145,7 @@ export interface AuthUser {
   email: string;
   name: string;
   company_id: string;
-  role: string;
+  role: 'admin' | 'user';
 }
 
 // Enhanced webhook types for Evolution API integration

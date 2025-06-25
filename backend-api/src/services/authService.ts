@@ -153,13 +153,13 @@ export class AuthService {
     currentPassword: string,
     newPassword: string
   ): Promise<void> {
-    const user = await UserModel.findById(userId);
+    const userWithPassword = await UserModel.findByEmail((await UserModel.findById(userId))?.email || '');
     
-    if (!user) {
+    if (!userWithPassword) {
       throw createError('User not found', 404);
     }
 
-    const isValidPassword = await bcrypt.compare(currentPassword, user.password_hash);
+    const isValidPassword = await bcrypt.compare(currentPassword, userWithPassword.password_hash);
     
     if (!isValidPassword) {
       throw createError('Current password is incorrect', 400);
@@ -224,11 +224,11 @@ export class AuthService {
       await UserModel.updateLastLogin(user.id);
 
       return {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        company_id: user.company_id,
-        role: user.role
+        id: user!.id,
+        email: user!.email,
+        name: user!.name,
+        company_id: user!.company_id,
+        role: user!.role
       };
     } catch (error) {
       console.error('Stack Auth validation error:', error);
